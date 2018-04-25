@@ -14,7 +14,7 @@ namespace NFePHP\CTe;
  */
 
 use DOMElement;
-use NFePHP\Common\Base\BaseMake;
+use NFePHP\CommonV4\Base\BaseMake;
 
 class Make extends BaseMake
 {
@@ -44,7 +44,7 @@ class Make extends BaseMake
     /**
      * dom
      * Variável onde será montado o xml do documento fiscal
-     * @var \NFePHP\Common\Dom\Dom
+     * @var \NFePHP\CommonV4\Dom\Dom
      */
     public $dom;
     /**

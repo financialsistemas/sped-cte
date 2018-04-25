@@ -41,8 +41,8 @@ ini_set('display_errors', 'On');
 
 require_once('../bootstrap.php');
 
-use NFePHP\Common\Configure\Configure;
-use NFePHP\Common\Files\FilesFolders;
+use NFePHP\CommonV4\Configure\Configure;
+use NFePHP\CommonV4\Files\FilesFolders;
 
 $htmod = Configure::chkModules();
 

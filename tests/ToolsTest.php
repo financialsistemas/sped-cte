@@ -12,7 +12,7 @@ class ToolsTest extends TestCase
     public $cte;
 
     /**
-     * @expectedException NFePHP\Common\Exception\InvalidArgumentException
+     * @expectedException NFePHP\CommonV4\Exception\InvalidArgumentException
      */
     public function testDeveLancarInvalidargumentexceptionAoInstanciarComParametroVazio()
     {
