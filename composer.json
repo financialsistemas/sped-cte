@@ -18,17 +18,10 @@
         }
     ],
     "require": {
-<<<<<<< HEAD
-        "php" : "~5.5|~7.0",
-        "financialsistemas/sped-common": "dev-v4.1-finsis",
-        "zendframework/zend-mail": "^2.5",
-        "html2text/html2text": "^4.0"
-=======
         "php" : ">=5.6",
         "nfephp-org/sped-common" : "^5.0",
         "justinrainbow/json-schema": "^5.2",
         "symfony/yaml": "^3.3"
->>>>>>> 456f220b0d8c47d00c7368ffeb98aae0f284200f
     },
     "require-dev": {
         "squizlabs/php_codesniffer": "^2.8",
