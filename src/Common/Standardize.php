@@ -40,6 +40,7 @@ class Standardize
      * @var array
      */
     public $rootTagList = [
+        'retConsStatServCte',
         'enviCTe',
         'retEnviCte',
         'retConsReciCTe',
