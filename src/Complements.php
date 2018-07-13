@@ -97,8 +97,8 @@ class Complements
         );
     }
 
-    /**
-     * Authorize NFe
+   /**
+     * Authorize CTe
      * @param string $request
      * @param string $response
      * @return string
@@ -110,7 +110,7 @@ class Complements
         $req->preserveWhiteSpace = false;
         $req->formatOutput = false;
         $req->loadXML($request);
-        
+
         $cte = $req->getElementsByTagName('CTe')->item(0);
         $infCTe = $req->getElementsByTagName('infCte')->item(0);
         $versao = $infCTe->getAttribute("versao");
@@ -118,40 +118,48 @@ class Complements
         $digCTe = $req->getElementsByTagName('DigestValue')
             ->item(0)
             ->nodeValue;
-                
+
         $ret = new DOMDocument('1.0', 'UTF-8');
         $ret->preserveWhiteSpace = false;
         $ret->formatOutput = false;
         $ret->loadXML($response);
-        $retProt = $ret->getElementsByTagName('protCTe')->item(0);
+        $retProt = $ret->getElementsByTagName('protCTe');
         if (!isset($retProt)) {
             throw DocumentsException::wrongDocument(3, "&lt;protCTe&gt;");
         }
-        $infProt = $ret->getElementsByTagName('infProt')->item(0);
-        $cStat  = $infProt->getElementsByTagName('cStat')->item(0)->nodeValue;
-        $xMotivo = $infProt->getElementsByTagName('xMotivo')->item(0)->nodeValue;
-        $dig = $infProt->getElementsByTagName("digVal")->item(0);
+
         $digProt = '000';
-        if (isset($dig)) {
-            $digProt = $dig->nodeValue;
+        foreach ($retProt as $rp) {
+            $infProt = $rp->getElementsByTagName('infProt')->item(0);
+            $cStat  = $infProt->getElementsByTagName('cStat')->item(0)->nodeValue;
+            $xMotivo = $infProt->getElementsByTagName('xMotivo')->item(0)->nodeValue;
+            $dig = $infProt->getElementsByTagName("digVal")->item(0);
+            $key = $infProt->getElementsByTagName("chCTe")->item(0)->nodeValue;
+            if (isset($dig)) {
+                $digProt = $dig->nodeValue;
+                if ($digProt == $digCTe && $chave == $key) {
+                    //100 Autorizado
+                    //150 Autorizado fora do prazo
+                    //110 Uso Denegado
+                    //205 CTe Denegada
+                    $cstatpermit = ['100', '150', '110', '205'];
+                    if (!in_array($cStat, $cstatpermit)) {
+                        throw DocumentsException::wrongDocument(4, "[$cStat] $xMotivo");
+                    }
+                    return self::join(
+                        $req->saveXML($cte),
+                        $ret->saveXML($rp),
+                        'cteProc',
+                        $versao
+                    );
+                }
+            }
         }
-        //100 Autorizado
-        //150 Autorizado fora do prazo
-        //110 Uso Denegado
-        //205 CTe Denegada
-        $cstatpermit = ['100', '150', '110', '205'];
-        if (!in_array($cStat, $cstatpermit)) {
-            throw DocumentsException::wrongDocument(4, "[$cStat] $xMotivo");
-        }
+
         if ($digCTe !== $digProt) {
             throw DocumentsException::wrongDocument(5, "O digest é diferente");
         }
-        return self::join(
-            $req->saveXML($cte),
-            $ret->saveXML($retProt),
-            'cteProc',
-            $versao
-        );
+        return $req->saveXML();
     }
     
     /**
