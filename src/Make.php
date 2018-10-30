@@ -451,6 +451,21 @@ class Make
      */
     private $rodo = '';
     /**
+     * Informações do modal Aéreo
+     * @var \DOMNode
+     */
+    private $aereo = '';
+    /**
+     * Informações do modal Aéreo -> Dados da Carga
+     * @var \DOMNode
+     */
+    private $natCarga = '';
+    /**
+     * Informações do modal Aéreo -> Tarifas
+     * @var \DOMNode
+     */
+    private $tarifa = '';
+    /**
      * Ordens de Coleta associados
      * @var array
      */
@@ -484,6 +499,11 @@ class Make
      * @var array
      */
     private $moto = array();
+    /**
+     * Autorizados para download do XML do DF-e
+     * @var array
+     */
+    private $autXML = array();
     
     public function __construct()
     {
@@ -544,7 +564,7 @@ class Make
         if ($this->mod == 57) {
             $this->buildCTe();
         } else {
-            $this->montaCTeOS();
+            return $this->montaCTeOS();
         }
         if ($this->toma3 != '') {
             $this->dom->appChild($this->ide, $this->toma3, 'Falta tag "ide"');
@@ -620,7 +640,11 @@ class Make
             $this->dom->appChild($this->infCte, $this->infCTeNorm, 'Falta tag "infCTeNorm"');
             $this->dom->appChild($this->infCTeNorm, $this->infCarga, 'Falta tag "infCarga"');
             foreach ($this->infQ as $infQ) {
-                $this->dom->appChild($this->infCarga, $infQ, 'Falta tag "infQ"');
+                if (end($this->infQ) == $infQ) {
+                    $this->infCarga->insertBefore($infQ, $this->infCarga->getElementsByTagName("vCargaAverb")->item(0));
+                } else {
+                    $this->dom->appChild($this->infCarga, $infQ, 'Falta tag "infQ"');
+                }
             }
 
             $this->dom->appChild($this->infCTeNorm, $this->infDoc, 'Falta tag "infDoc"');
@@ -652,11 +676,22 @@ class Make
             }
 
             $this->dom->appChild($this->infCTeNorm, $this->infModal, 'Falta tag "infModal"');
-            $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
+            if ($this->modal=='01') {
+                $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
+                foreach ($this->veic as $veic) {
+                    $this->dom->appChild($this->rodo, $veic, 'Falta tag "veic"');
+                }
+            } elseif ($this->modal=='02') {
+                $this->dom->appChild($this->infModal, $this->aereo, 'Falta tag "aereo"');
+            } else {
+                throw new Exception('Modal não informado ou não suportado.');
+            }
         }
-        foreach ($this->veic as $veic) {
-            $this->dom->appChild($this->rodo, $veic, 'Falta tag "veic"');
+
+        foreach ($this->autXML as $autXML) {
+            $this->dom->appChild($this->infCte, $autXML, 'Falta tag "autXML"');
         }
+
         //[1] tag infCTe
         $this->dom->appChild($this->CTe, $this->infCte, 'Falta tag "CTe"');
         //[0] tag CTe
@@ -724,9 +759,13 @@ class Make
                 $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
             }
         }
-
+        
         $this->dom->appChild($this->CTe, $this->infCte, 'Falta tag "CTe"');
-        $this->dom->appChild($this->dom, $this->CTe, 'Falta tag "DOMDocument"');
+        //$this->dom->appChild($this->dom, $this->CTe, 'Falta tag "DOMDocument"');
+        $this->dom->appendChild($this->CTe);
+        
+        // testa da chave
+        $this->checkCTeKey($this->dom);
         $this->xml = $this->dom->saveXML();
         return true;
     }
@@ -1069,21 +1108,21 @@ class Make
         $this->dom->addChild(
             $this->ide,
             'tpEmis',
-            $tpEmis,
+            $std->tpEmis,
             true,
             $identificador . 'Forma de emissão do CT-e'
         );
         $this->dom->addChild(
             $this->ide,
             'cDV',
-            $cDV,
+            $std->cDV,
             true,
             $identificador . 'Digito Verificador da chave de acesso do CT-e'
         );
         $this->dom->addChild(
             $this->ide,
             'tpAmb',
-            $tpAmb,
+            $std->tpAmb,
             true,
             $identificador . 'Tipo do Ambiente'
         );
@@ -1136,7 +1175,7 @@ class Make
             true,
             $identificador . 'Modal'
         );
-        $this->modal = $modal;
+        $this->modal = $std->modal;
         $this->dom->addChild(
             $this->ide,
             'tpServ',
@@ -1454,7 +1493,7 @@ class Make
         $this->dom->addChild(
             $this->enderToma,
             'xMun',
-            $xMun,
+            $std->xMun,
             true,
             $identificador . 'Nome do município'
         );
@@ -1581,9 +1620,10 @@ class Make
             false,
             $identificador . 'Nome do país'
         );
-        
-        $node = $this->toma4->getElementsByTagName("email")->item(0);
-        $this->toma4->insertBefore($this->enderToma, $node);
+
+        if (!empty($this->toma4)) {
+            $this->toma4->insertBefore($this->enderToma, $this->toma4->getElementsByTagName("email")->item(0));
+        }
         return $this->enderToma;
     }
 
@@ -2939,15 +2979,15 @@ class Make
                     true,
                     "$identificador  Valor do ICMS ST retido"
                 );
-                if ($vCred > 0) {
+                if ($std->vCred > 0) {
                     $this->dom->addChild($icms, 'vCred', $std->vCred, false, "$identificador  Valor do Crédito");
                 }
                 break;
             case '90':
-                if ($outraUF == true) {
+                if ($std->outraUF == true) {
                     $icms = $this->dom->createElement("ICMSOutraUF");
                     $this->dom->addChild($icms, 'CST', $std->cst, true, "$identificador  Tributação do ICMS = 90");
-                    if ($pRedBC > 0) {
+                    if ($std->pRedBC > 0) {
                         $this->dom->addChild(
                             $icms,
                             'pRedBCOutraUF',
@@ -2970,7 +3010,7 @@ class Make
                 } else {
                     $icms = $this->dom->createElement("ICMS90");
                     $this->dom->addChild($icms, 'CST', $std->cst, true, "$identificador Tributação do ICMS = 90");
-                    if ($pRedBC > 0) {
+                    if ($std->pRedBC > 0) {
                         $this->dom->addChild(
                             $icms,
                             'pRedBC',
@@ -2982,7 +3022,7 @@ class Make
                     $this->dom->addChild($icms, 'vBC', $std->vBC, true, "$identificador  Valor da BC do ICMS");
                     $this->dom->addChild($icms, 'pICMS', $std->pICMS, true, "$identificador  Alíquota do imposto");
                     $this->dom->addChild($icms, 'vICMS', $std->vICMS, true, "$identificador  Valor do ICMS");
-                    if ($vCred > 0) {
+                    if ($std->vCred > 0) {
                         $this->dom->addChild($icms, 'vCred', $std->vCred, false, "$identificador  Valor do Crédido");
                     }
                 }
@@ -3546,6 +3586,92 @@ class Make
     }
     
     /**
+     * Leiaute - Aéreo
+     * Gera as tags para o elemento: "aereo" (Informações do modal Aéreo)
+     * @author Newton Pasqualini Filho
+     * #1
+     * Nível: 0
+     * @return DOMElement|\DOMNode
+     */
+    public function tagaereo($std)
+    {
+        $identificador = '#1 <aereo> - ';
+        $this->aereo = $this->dom->createElement('aereo');
+        $this->dom->addChild(
+            $this->aereo,
+            'nMinu',
+            $std->nMinu,
+            false,
+            $identificador . 'Número da Minuta'
+        );
+        $this->dom->addChild(
+            $this->aereo,
+            'nOCA',
+            $std->nOCA,
+            false,
+            $identificador . 'Número Operacional do Conhecimento Aéreo'
+        );
+        $this->dom->addChild(
+            $this->aereo,
+            'dPrevAereo',
+            $std->dPrevAereo,
+            true,
+            $identificador . 'Data prevista da entrega'
+        );
+        if (isset($std->natCarga_xDime) || isset($std->natCarga_cInfManu)) {
+            $identificador = '#1 <aereo> - <natCarga> - ';
+            $this->natCarga = $this->dom->createElement('natCarga');
+            $this->dom->addChild(
+                $this->natCarga,
+                'xDime',
+                $std->natCarga_xDime,
+                false,
+                $identificador . 'Dimensões da carga, formato: 1234x1234x1234 (cm)'
+            );
+            if (isset($std->natCarga_cInfManu) && !is_array($std->natCarga_cInfManu)) {
+                $std->natCarga_cInfManu = [$std->natCarga_cInfManu];
+            }
+            $cInfManuX = 0;
+            foreach ($std->natCarga_cInfManu as $cInfManu) {
+                $cInfManuX++;
+                $this->dom->addChild(
+                    $this->natCarga,
+                    'cInfManu',
+                    $cInfManu,
+                    false,
+                    $identificador . 'Informação de manuseio, com dois dígitos, pode ter mais de uma ocorrência.'
+                );
+            }
+            $this->aereo->appendChild($this->natCarga);
+        }
+        $identificador = '#1 <aereo> - <tarifa> - ';
+        $this->tarifa = $this->dom->createElement('tarifa');
+        $this->dom->addChild(
+            $this->tarifa,
+            'CL',
+            $std->tarifa_CL,
+            true,
+            $identificador . 'Classe da tarifa: M - Tarifa Mínima / G - Tarifa Geral / E - Tarifa Específica'
+        );
+        $this->dom->addChild(
+            $this->tarifa,
+            'cTar',
+            $std->tarifa_cTar,
+            false,
+            $identificador . 'Código de três digítos correspondentes à tarifa.'
+        );
+        $this->dom->addChild(
+            $this->tarifa,
+            'vTar',
+            $std->tarifa_vTar,
+            true,
+            $identificador . 'Valor da tarifa. 15 posições, sendo 13 inteiras e 2 decimais.'
+        );
+        $this->aereo->appendChild($this->tarifa);
+        return $this->aereo;
+    }
+
+    /**
      * CT-e de substituição
      * @param type $std
      * @return type
@@ -3968,6 +4094,40 @@ class Make
             $identificador . ' Data de Emissão do CT-e anulado'
         );
         return $this->infCteAnu;
+    }
+
+    /**
+     * Gera as tags para o elemento: "autXML" (Autorizados para download do XML)
+     * #396
+     * Nível: 1
+     * Os parâmetros para esta função são todos os elementos da tag "autXML"
+     *
+     * @return boolean
+     */
+    public function tagautXML($std)
+    {
+        $identificador = '#396 <autXML> - ';
+        $autXML = $this->dom->createElement('autXML');
+        if (isset($std->CNPJ) && $std->CNPJ != '') {
+            $this->dom->addChild(
+                $autXML,
+                'CNPJ',
+                $std->CNPJ,
+                true,
+                $identificador . 'CNPJ do Cliente Autorizado'
+            );
+        } elseif (isset($std->CPF) && $std->CPF != '') {
+            $this->dom->addChild(
+                $autXML,
+                'CPF',
+                $std->CPF,
+                true,
+                $identificador . 'CPF do Cliente Autorizado'
+            );
+        }
+
+        $this->autXML[] = $autXML;
+        return $autXML;
     }
     
     protected function checkCTeKey(Dom $dom)
