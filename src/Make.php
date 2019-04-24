@@ -504,6 +504,12 @@ class Make
      * @var array
      */
     private $autXML = array();
+
+    /**
+     * Dados do Fretamento - CTe-OS
+     * @var
+     */
+    private $infFretamento;
     
     public function __construct()
     {
@@ -756,6 +762,7 @@ class Make
             if ($this->infModal != '') {
                 $this->dom->appChild($this->infCTeNorm, $this->infModal, 'Falta tag "infModal"');
                 $this->dom->appChild($this->rodo, $this->veic, 'Falta tag "veic"');
+                $this->dom->appChild($this->rodo, $this->infFretamento, 'Falta tag "infFretamento"');
                 $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
             }
         }
@@ -2005,9 +2012,9 @@ class Make
     public function tagobsFisco($std)
     {
         $identificador = '#94 <ObsFisco> - ';
-        $posicao = (integer) count($this->obsFisco) - 1;
         if (count($this->obsFisco) <= 10) {
-            $this->obsFisco[] = $this->dom->createElement('obsFisco');
+            $this->obsFisco[] = $this->dom->createElement('ObsFisco');
+            $posicao = (integer) count($this->obsFisco) - 1;
             $this->obsFisco[$posicao]->setAttribute('xCampo', $std->xCampo);
             $this->dom->addChild(
                 $this->obsFisco[$posicao],
@@ -2050,7 +2057,7 @@ class Make
             $this->emit,
             'IE',
             Strings::onlyNumbers($std->IE),
-            true,
+            false,
             $identificador . 'Inscrição Estadual do Emitente'
         );
         $this->dom->addChild(
@@ -3050,6 +3057,15 @@ class Make
                 "$identificador Valor Total dos Tributos"
             );
         }
+        if (isset($std->infAdFisco)) {
+            $this->dom->addChild(
+                $this->imp,
+                'infAdFisco',
+                $std->infAdFisco,
+                false,
+                "$identificador Informações adicionais de interesse do Fisco"
+            );
+        }
 
         if ($std->vICMSUFFim != '' || $std->vICMSUFIni != '') {
             $icmsDifal = $this->dom->createElement("ICMSUFFim");
@@ -3753,7 +3769,7 @@ class Make
                     true,
                     $identificador . 'CNPJ do emitente'
                 );
-        } elseif ($CPF != '') {
+        } elseif ($std->CPF != '') {
             $this->dom->addChild(
                 $this->refNF,
                 'CPF',
@@ -3901,11 +3917,11 @@ class Make
                     true,
                     $identificador . 'CNPJ do proprietario'
                 );
-            } elseif ($CPF != '') {
+            } elseif ($std->CPF != '') {
                 $this->dom->addChild(
                     $this->prop[$p],
                     'CPF',
-                    $CPF,
+                    $std->CPF,
                     true,
                     $identificador . 'CPF do proprietario'
                 );
@@ -3986,7 +4002,7 @@ class Make
                     true,
                     $identificador . 'CNPJ do proprietario'
                 );
-            } elseif ($CPF != '') {
+            } elseif ($std->CPF != '') {
                 $this->dom->addChild(
                     $this->prop,
                     'CPF',
@@ -4049,6 +4065,28 @@ class Make
         return $this->veic;
     }
 
+    public function infFretamento($std)
+    {
+        $identificador = '#21 <infFretamento> - ';
+        $this->infFretamento = $this->dom->createElement('infFretamento');
+
+        $this->dom->addChild(
+            $this->infFretamento,
+            'tpFretamento',
+            $std->tpFretamento,
+            true,
+            $identificador . 'Tipo do Fretamento de Pessoas'
+        );
+        $this->dom->addChild(
+            $this->infFretamento,
+            'dhViagem',
+            $std->dhViagem,
+            false,
+            $identificador . 'Data e hora da viagem'
+        );
+        return $this->infFretamento;
+    }
+
     /**
      * Gera as tags para o elemento: "infCteComp" (Detalhamento do CT-e complementado)
      * #410
@@ -4061,8 +4099,8 @@ class Make
         $this->infCteComp = $this->dom->createElement('infCteComp');
         $this->dom->addChild(
             $this->infCteComp,
-            'chave',
-            $std->chave,
+            'chCTe',
+            $std->chCTe,
             true,
             $identificador . ' Chave do CT-e complementado'
         );
