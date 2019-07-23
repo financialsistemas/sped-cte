@@ -765,6 +765,14 @@ class Make
                 $this->dom->appChild($this->rodo, $this->infFretamento, 'Falta tag "infFretamento"');
                 $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
             }
+
+            if ($this->infCteSub != '') {
+                if ($this->tomaICMS != '') {
+                    $this->dom->appChild($this->infCteSub, $this->tomaICMS, 'Falta tag "tomaICMS"');
+                }
+
+                $this->dom->appChild($this->infCTeNorm, $this->infCteSub, 'Falta tag "infCteSub"');
+            }
         }
         
         $this->dom->appChild($this->CTe, $this->infCte, 'Falta tag "CTe"');
