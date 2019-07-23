@@ -27,7 +27,7 @@ class Make
      * @var array
      */
     public $erros = [];
-    
+
     /**
      * versao
      * numero da versão do xml da CTe
@@ -510,14 +510,14 @@ class Make
      * @var
      */
     private $infFretamento;
-    
+
     public function __construct()
     {
         $this->dom = new Dom('1.0', 'UTF-8');
         $this->dom->preserveWhiteSpace = false;
         $this->dom->formatOutput = false;
     }
-    
+
     /**
      * Returns xml string and assembly it is necessary
      * @return string
@@ -529,7 +529,7 @@ class Make
         }
         return $this->xml;
     }
-    
+
     /**
      * Retorns the key number of NFe (44 digits)
      * @return string
@@ -538,7 +538,7 @@ class Make
     {
         return $this->chCTe;
     }
-    
+
     /**
      * Returns the model of CTe 57 or 67
      * @return int
@@ -547,7 +547,7 @@ class Make
     {
         return $this->mod;
     }
-    
+
     /**
      * Call method of xml assembly. For compatibility only.
      * @return boolean
@@ -556,7 +556,7 @@ class Make
     {
         return $this->monta();
     }
-    
+
     /**
      * Monta o arquivo XML usando as tag's já preenchidas
      *
@@ -692,6 +692,14 @@ class Make
             } else {
                 throw new Exception('Modal não informado ou não suportado.');
             }
+
+            if ($this->infCteSub != '') {
+                if ($this->tomaICMS != '') {
+                    $this->dom->appChild($this->infCteSub, $this->tomaICMS, 'Falta tag "tomaICMS"');
+                }
+
+                $this->dom->appChild($this->infCTeNorm, $this->infCteSub, 'Falta tag "infCteSub"');
+            }
         }
 
         foreach ($this->autXML as $autXML) {
@@ -702,7 +710,7 @@ class Make
         $this->dom->appChild($this->CTe, $this->infCte, 'Falta tag "CTe"');
         //[0] tag CTe
         $this->dom->appendChild($this->CTe);
-        
+
         // testa da chave
         $this->checkCTeKey($this->dom);
         $this->xml = $this->dom->saveXML();
@@ -766,11 +774,11 @@ class Make
                 $this->dom->appChild($this->infModal, $this->rodo, 'Falta tag "rodo"');
             }
         }
-        
+
         $this->dom->appChild($this->CTe, $this->infCte, 'Falta tag "CTe"');
         //$this->dom->appChild($this->dom, $this->CTe, 'Falta tag "DOMDocument"');
         $this->dom->appendChild($this->CTe);
-        
+
         // testa da chave
         $this->checkCTeKey($this->dom);
         $this->xml = $this->dom->saveXML();
@@ -2917,7 +2925,7 @@ class Make
         );
         return $this->comp[$posicao];
     }
-    
+
     /**
      * tagICMS
      * Informações relativas ao ICMS
@@ -3160,7 +3168,7 @@ class Make
 
         $this->imp->appendChild($tagInfTribFed);
     }
-    
+
 
     /**
      * Tag raiz do documento xml
@@ -3600,7 +3608,7 @@ class Make
 
         return $this->rodo;
     }
-    
+
     /**
      * Leiaute - Aéreo
      * Gera as tags para o elemento: "aereo" (Informações do modal Aéreo)
@@ -3699,22 +3707,22 @@ class Make
 
         $this->dom->addChild(
             $this->infCteSub,
-            'chCTe',
-            $std->chCTe,
+            'chCte',
+            $std->chCte,
             false,
             "$identificador  Chave de acesso do CTe a ser substituído (original)"
         );
         $this->dom->addChild(
             $this->infCteSub,
-            'retCteAnu',
-            $std->retCteAnu,
+            'refCteAnu',
+            $std->refCteAnu,
             false,
             "$identificador  Chave de acesso do CT-e de Anulação"
         );
         return $this->infCteSub;
     }
-    
-    
+
+
     /**
      * CT-e de substituição - tomaICMS
      * @param type $std
@@ -3726,7 +3734,7 @@ class Make
 
         return $this->tomaICMS;
     }
-    
+
     /**
      * CT-e de substituição - NF-e
      * @param type $std
@@ -3748,7 +3756,7 @@ class Make
 
         return $this->tomaICMS;
     }
-    
+
     /**
      * CT-e de substituição - NF
      * @param type $std
@@ -3786,12 +3794,12 @@ class Make
         $this->dom->addChild($this->refNF, 'nro', $std->nro, false, $identificador . 'Número');
         $this->dom->addChild($this->refNF, 'valor', $std->valor, false, $identificador . 'Valor');
         $this->dom->addChild($this->refNF, 'dEmi', $std->dEmi, false, $identificador . 'Emissão');
-        
+
         $this->tomaICMS->appendChild($this->refNF);
 
         return $this->tomaICMS;
     }
-    
+
     /**
      * CT-e de substituição - CT-e
      * @param type $std
@@ -3813,7 +3821,7 @@ class Make
 
         return $this->tomaICMS;
     }
-    
+
 
     /**
      * Leiaute - Rodoviário CTe OS
@@ -4167,7 +4175,7 @@ class Make
         $this->autXML[] = $autXML;
         return $autXML;
     }
-    
+
     protected function checkCTeKey(Dom $dom)
     {
         $infCTe = $dom->getElementsByTagName("infCte")->item(0);
