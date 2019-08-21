@@ -333,10 +333,10 @@ class Tools
         if ($modelo == 67) {
             $method = 'cteOS';
         }
-        $isInfCTeSupl = !empty($dom->getElementsByTagName('infCTeSupl')->item(0));
+        /* $isInfCTeSupl = !empty($dom->getElementsByTagName('infCTeSupl')->item(0));
         if (!$isInfCTeSupl) {
             $signed = $this->addQRCode($dom);
-        }
+        } */
         $this->isValid($this->versao, $signed, $method);
         return $signed;
     }
