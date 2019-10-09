@@ -50,16 +50,12 @@ class ContingencyCTe
             $ide->getElementsByTagName('dhCont')
                 ->item(0)
                 ->nodeValue = $dt->format('Y-m-d\TH:i:sP');
-        } else {
-            $dhCont = $dom->createElement('dhCont', $dt->format('Y-m-d\TH:i:sP'));
-            $ide->appendChild($dhCont);
-        }
+        } 
+
         if (!empty($ide->getElementsByTagName('xJust')->item(0)->nodeValue)) {
             $ide->getElementsByTagName('xJust')->item(0)->nodeValue = $motivo;
-        } else {
-            $xJust = $dom->createElement('xJust', $motivo);
-            $ide->appendChild($xJust);
         }
+        
         //corrigir a chave
         $infCte = $dom->getElementsByTagName('infCte')->item(0);
         $chave = Keys::build(
