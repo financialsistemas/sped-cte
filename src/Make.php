@@ -621,7 +621,9 @@ class Make
             foreach ($this->infOutros as $infOutros) {
                 $this->dom->appChild($this->infDoc, $infOutros, 'Falta tag "infOutros"');
             }
-            $this->dom->appChild($this->infCTeNorm, $this->infDoc, 'Falta tag "infCTeNorm"');
+            if (!empty($this->infDoc)) {
+                $this->dom->appChild($this->infCTeNorm, $this->infDoc, 'Falta tag "infCTeNorm"');
+            }            
             if ($this->idDocAntEle != [] || $this->idDocAntPap != []) { //Caso tenha CT-es Anteriores viculados
                 $this->dom->appChild($this->infCTeNorm, $this->docAnt, 'Falta tag "docAnt"');
                 foreach ($this->emiDocAnt as $indice => $emiDocAnt) {
@@ -4505,13 +4507,8 @@ class Make
     {
 
         $possible = [
-            'vPrest',
-            'vAFRMM',
-            'xNavio',
-            'nViag',
-            'direc',
-            'irin',
-            'tpNav'
+            'TAF',
+            'NroRegEstadual'
         ];
 
         $std = $this->equilizeParameters($std, $possible);
@@ -4528,7 +4525,7 @@ class Make
         $this->dom->addChild(
             $this->rodo,
             'NroRegEstadual',
-            $std->nroRegEstadual,
+            $std->NroRegEstadual,
             false,
             $identificador . 'Número do Registro Estadual'
         );
