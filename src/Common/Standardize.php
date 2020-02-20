@@ -150,5 +150,4 @@ class Standardize
         }
         return json_decode($this->json, true);
     }
-
 }

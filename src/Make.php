@@ -374,6 +374,16 @@ class Make
      */
     private $infCteSub = '';
     /**
+     * Informações do Serviço Vinculado a Multimodal
+     * @var \DOMNode
+     */
+    private $infServVinc = '';
+    /**
+     * Informações do CT-e multimodal vinculado
+     * @var \DOMNode
+     */
+    private $infCTeMultimodal = array();
+    /**
      * Tomador é contribuinte do ICMS
      * @var \DOMNode
      */
@@ -530,7 +540,7 @@ class Make
      */
     public function monta()
     {
-        $this->errors = $this->dom->errors;       
+        $this->errors = $this->dom->errors;
         if ($this->mod == 57) {
             $this->buildCTe();
         } else {
@@ -543,36 +553,6 @@ class Make
         }
         $this->dom->appChild($this->infCte, $this->ide, 'Falta tag "infCte"');
         if ($this->compl != '') {
-            if ($this->fluxo != '') {
-                foreach ($this->pass as $pass) {
-                    $this->dom->appChild($this->fluxo, $pass, 'Falta tag "fluxo"');
-                }
-                $this->dom->appChild($this->compl, $this->fluxo, 'Falta tag "infCte"');
-            }
-            if ($this->semData != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->semData, 'Falta tag "Entrega"');
-            }
-            if ($this->comData != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->comData, 'Falta tag "Entrega"');
-            }
-            if ($this->noPeriodo != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->noPeriodo, 'Falta tag "Entrega"');
-            }
-            if ($this->semHora != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->semHora, 'Falta tag "Entrega"');
-            }
-            if ($this->comHora != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->comHora, 'Falta tag "Entrega"');
-            }
-            if ($this->noInter != '') {
-                $this->tagEntrega();
-                $this->dom->appChild($this->entrega, $this->noInter, 'Falta tag "Entrega"');
-            }
             foreach ($this->obsCont as $obsCont) {
                 $this->dom->appChild($this->compl, $obsCont, 'Falta tag "compl"');
             }
@@ -623,7 +603,7 @@ class Make
             }
             if (!empty($this->infDoc)) {
                 $this->dom->appChild($this->infCTeNorm, $this->infDoc, 'Falta tag "infCTeNorm"');
-            }            
+            }
             if ($this->idDocAntEle != [] || $this->idDocAntPap != []) { //Caso tenha CT-es Anteriores viculados
                 $this->dom->appChild($this->infCTeNorm, $this->docAnt, 'Falta tag "docAnt"');
                 foreach ($this->emiDocAnt as $indice => $emiDocAnt) {
@@ -686,6 +666,13 @@ class Make
 
                 if ($this->tomaICMS != '') {
                     $this->dom->appChild($this->infCteSub, $this->tomaICMS, 'Falta tag "infCteSub"');
+                }
+            }
+            if ($this->infServVinc != '') {
+                $this->dom->appChild($this->infCTeNorm, $this->infServVinc, 'Falta tag "infServVinc"');
+
+                foreach ($this->infCTeMultimodal as $infCTeMultimodal) {
+                    $this->dom->appChild($this->infServVinc, $infCTeMultimodal, 'Falta tag "infCTeMultimodal"');
                 }
             }
         }
@@ -1666,6 +1653,36 @@ class Make
             false,
             $identificador . 'Funcionário emissor do CTe'
         );
+        if ($this->fluxo != '') {
+            foreach ($this->pass as $pass) {
+                $this->dom->appChild($this->fluxo, $pass, 'Falta tag "fluxo"');
+            }
+            $this->dom->appChild($this->compl, $this->fluxo, 'Falta tag "infCte"');
+        }
+        if ($this->semData != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->semData, 'Falta tag "Entrega"');
+        }
+        if ($this->comData != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->comData, 'Falta tag "Entrega"');
+        }
+        if ($this->noPeriodo != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->noPeriodo, 'Falta tag "Entrega"');
+        }
+        if ($this->semHora != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->semHora, 'Falta tag "Entrega"');
+        }
+        if ($this->comHora != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->comHora, 'Falta tag "Entrega"');
+        }
+        if ($this->noInter != '') {
+            $this->tagEntrega();
+            $this->dom->appChild($this->entrega, $this->noInter, 'Falta tag "Entrega"');
+        }
         if ($this->mod == 57) {
             $this->dom->addChild(
                 $this->compl,
@@ -3279,9 +3296,20 @@ class Make
                             . "BC Outra UF"
                         );
                     }
-                    $this->dom->addChild($icms, 'vBCOutraUF', $std->vBCOutraUF, true, "$identificador Valor BC ICMS Outra UF");
-                    $this->dom->addChild($icms, 'pICMSOutraUF', $std->pICMSOutraUF, true, "$identificador Alíquota do "
-                        . "imposto Outra UF");
+                    $this->dom->addChild(
+                        $icms,
+                        'vBCOutraUF',
+                        $std->vBCOutraUF,
+                        true,
+                        "$identificador Valor BC ICMS Outra UF"
+                    );
+                    $this->dom->addChild(
+                        $icms,
+                        'pICMSOutraUF',
+                        $std->pICMSOutraUF,
+                        true,
+                        "$identificador Alíquota do imposto Outra UF"
+                    );
                     $this->dom->addChild(
                         $icms,
                         'vICMSOutraUF',
@@ -4898,6 +4926,33 @@ class Make
         return $this->infCteSub;
     }
 
+    /**
+     * Informações do Serviço Vinculado a Multimodal
+     * @return type
+     */
+    public function infCTeMultimodal($std)
+    {
+        $possible = [
+            'chCTeMultimodal',
+        ];
+
+        $std = $this->equilizeParameters($std, $possible);
+
+        if (empty($this->infServVinc)) $this->infServVinc = $this->dom->createElement('infServVinc');
+
+        $identificador = '#388 <infCTeMultimodal> - ';
+        $infCTeMultimodal = $this->dom->createElement('infCTeMultimodal');
+        $this->dom->addChild(
+            $infCTeMultimodal,
+            'chCTeMultimodal',
+            $std->chCTeMultimodal,
+            true,
+            $identificador . 'Chave de acesso do CT-e Multimodal '
+        );
+
+        $this->infCTeMultimodal[] = $infCTeMultimodal;
+        return $infCTeMultimodal;
+    }
 
     /**
      * CT-e de substituição - tomaICMS
