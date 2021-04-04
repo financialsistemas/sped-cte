@@ -280,7 +280,6 @@ class Complements
      */
     public static function cancelRegister($cte, $cancelamento)
     {
-        $procXML = $cte;
         $domcte = new DOMDocument('1.0', 'utf-8');
         $domcte->formatOutput = false;
         $domcte->preserveWhiteSpace = false;
@@ -301,9 +300,6 @@ class Complements
             $cStat = $infEvento->getElementsByTagName('cStat')
                 ->item(0)
                 ->nodeValue;
-            $nProt = $infEvento->getElementsByTagName('nProt')
-                ->item(0)
-                ->nodeValue;
             $chaveEvento = $infEvento->getElementsByTagName('chCTe')
                 ->item(0)
                 ->nodeValue;
@@ -314,20 +310,12 @@ class Complements
                 && $tpEvento == '110111'
                 && $chaveEvento == $chaveCTe
             ) {
-                $proCTe->getElementsByTagName('cStat')
-                    ->item(0)
-                    ->nodeValue = '101';
-                $proCTe->getElementsByTagName('nProt')
-                    ->item(0)
-                    ->nodeValue = $nProt;
-                $proCTe->getElementsByTagName('xMotivo')
-                    ->item(0)
-                    ->nodeValue = 'Cancelamento de CT-e homologado';
-                $procXML = Strings::clearProtocoledXML($domcte->saveXML());
+                $node = $domcte->importNode($evento, true);
+                $domcte->documentElement->appendChild($node);
                 break;
             }
         }
-        return $procXML;
+        return $domcte->saveXML();
     }
 
     /**
