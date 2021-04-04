@@ -721,7 +721,7 @@ class Tools extends ToolsCommon
             true
         );
         //monta a consulta
-        $consulta = "<consChNFe><chNFe>$chave</chNFe></consChNFe>"
+        $consulta = "<consChCTe><chCTe>$chave</chCTe></consChCTe>"
             . ((strlen($this->config->cnpj)==14) ?
                 "<CNPJ>".$this->config->cnpj."</CNPJ>" :
                 "<CPF>".$this->config->cnpj."</CPF>"
