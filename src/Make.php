@@ -1062,7 +1062,7 @@ class Make
         $this->dom->addChild(
             $this->ide,
             'natOp',
-            Strings::replaceSpecialsChars(substr(trim($std->natOp), 0, 60)),
+            substr(trim($std->natOp), 0, 60),
             true,
             $identificador . 'Natureza da Operação'
         );
@@ -1272,7 +1272,7 @@ class Make
         $this->dom->addChild(
             $this->ide,
             'xJust',
-            Strings::replaceSpecialsChars(substr(trim($std->xJust), 0, 256)),
+            substr(trim($std->xJust), 0, 256),
             false,
             $identificador . 'Justificativa da entrada em contingência'
         );
@@ -2212,6 +2212,7 @@ class Make
     {
         $possible = [
             'CNPJ',
+            'CPF',
             'IE',
             'IEST',
             'xNome',
@@ -2220,13 +2221,23 @@ class Make
         $std = $this->equilizeParameters($std, $possible);
         $identificador = '#97 <emit> - ';
         $this->emit = $this->dom->createElement('emit');
-        $this->dom->addChild(
-            $this->emit,
-            'CNPJ',
-            $std->CNPJ,
-            true,
-            $identificador . 'CNPJ do emitente'
-        );
+        if (!empty($std->CNPJ)) {
+            $this->dom->addChild(
+                $this->emit,
+                'CNPJ',
+                $std->CNPJ,
+                true,
+                $identificador . 'CNPJ do emitente'
+            );
+        } else {
+            $this->dom->addChild(
+                $this->emit,
+                'CPF',
+                $std->CPF,
+                true,
+                $identificador . 'CPF do emitente'
+            );
+        }
         $this->dom->addChild(
             $this->emit,
             'IE',
@@ -2419,7 +2430,7 @@ class Make
         $this->dom->addChild(
             $this->rem,
             'xNome',
-            Strings::replaceSpecialsChars(substr(trim($xNome), 0, 60)),
+            substr(trim($xNome), 0, 60),
             true,
             $identificador . 'Razão social ou Nome do remente'
         );
@@ -2619,7 +2630,7 @@ class Make
         $this->dom->addChild(
             $this->exped,
             'xNome',
-            Strings::replaceSpecialsChars(substr(trim($xNome), 0, 60)),
+            substr(trim($xNome), 0, 60),
             true,
             $identificador . 'Razão social ou Nome'
         );
@@ -2811,7 +2822,7 @@ class Make
         $this->dom->addChild(
             $this->receb,
             'xNome',
-            Strings::replaceSpecialsChars(substr(trim($xNome), 0, 60)),
+            substr(trim($xNome), 0, 60),
             true,
             $identificador . 'Razão social ou Nome'
         );
@@ -3004,7 +3015,7 @@ class Make
         $this->dom->addChild(
             $this->dest,
             'xNome',
-            Strings::replaceSpecialsChars(substr(trim($xNome), 0, 60)),
+            substr(trim($xNome), 0, 60),
             true,
             $identificador . 'Razão social ou Nome'
         );
@@ -4260,47 +4271,58 @@ class Make
             'serie',
             'subserie',
             'dEmi',
-            'vDoc'
+            'vDoc',
+            'chBPe'
         ];
         $std = $this->equilizeParameters($std, $possible);
         $ident = '#319 <infDocRef> - ';
         $this->infDocRef[] = $this->dom->createElement('infDocRef');
         $posicao = (int)count($this->infDocRef) - 1;
-        $this->dom->addChild(
-            $this->infDocRef[$posicao],
-            'nDoc',
-            $std->nDoc,
-            false,
-            $ident . 'Número do documento'
-        );
-        $this->dom->addChild(
-            $this->infDocRef[$posicao],
-            'serie',
-            $std->serie,
-            false,
-            $ident . 'Série do documento'
-        );
-        $this->dom->addChild(
-            $this->infDocRef[$posicao],
-            'subserie',
-            $std->subserie,
-            false,
-            $ident . 'Subserie do documento'
-        );
-        $this->dom->addChild(
-            $this->infDocRef[$posicao],
-            'dEmi',
-            $std->dEmi,
-            false,
-            $ident . 'Data de Emissão'
-        );
-        $this->dom->addChild(
-            $this->infDocRef[$posicao],
-            'vDoc',
-            $this->conditionalNumberFormatting($std->vDoc),
-            false,
-            $ident . 'Valor do documento'
-        );
+        if (!empty($std->chBPe)) {
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'chBPe',
+                $std->chBPe,
+                true,
+                $ident . 'Chave de acesso do BP-e que possui eventos excesso de bagagem'
+            );
+        } else {
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'nDoc',
+                $std->nDoc,
+                false,
+                $ident . 'Número do documento'
+            );
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'serie',
+                $std->serie,
+                false,
+                $ident . 'Série do documento'
+            );
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'subserie',
+                $std->subserie,
+                false,
+                $ident . 'Subserie do documento'
+            );
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'dEmi',
+                $std->dEmi,
+                false,
+                $ident . 'Data de Emissão'
+            );
+            $this->dom->addChild(
+                $this->infDocRef[$posicao],
+                'vDoc',
+                $this->conditionalNumberFormatting($std->vDoc),
+                false,
+                $ident . 'Valor do documento'
+            );
+        }
         return $this->infDocRef[$posicao];
     }
 
@@ -5540,7 +5562,7 @@ class Make
                 $this->dom->addChild(
                     $this->prop,
                     'NroRegEstadual',
-                    $std->nroRegEstadual,
+                    $std->NroRegEstadual,
                     false,
                     $identificador . 'Número do Registro Estadual'
                 );
@@ -5579,7 +5601,7 @@ class Make
             $this->veic,
             'UF',
             $std->uf,
-            true,
+            false,
             $identificador . 'UF em que veículo está licenciado'
         );
         return $this->veic;
@@ -6021,24 +6043,4 @@ class Make
         }
         return null;
     }
-
-    /*
-    protected function conditionalNumberFormatting($value = null, array $decimal): string
-    {
-        if (!is_numeric($value)) {
-            return null;
-        }
-        $num = (float) $value;
-        $l = explode('.', $num);
-        $declen = 0;
-        if (!empty($l[1])) {
-            $declen = strlen($l[1]);
-        }
-        if ($declen < $decimal[0]) {
-            return number_format($num, $decimal[0], '.', '');
-        } elseif ($declen > $decimal[1]) {
-            return number_format($num, $decimal[1], '.', '');
-        }
-        return $num;
-    }*/
 }
