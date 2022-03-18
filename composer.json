@@ -19,7 +19,7 @@
     ],
     "require": {
         "php" : ">=7.0",
-        "nfephp-org/sped-common" : "dev-master",
+        "nfephp-org/sped-common" : "^5.0",
         "justinrainbow/json-schema": "^5.2",
         "ext-zlib": "*",
         "ext-dom": "*",
@@ -37,10 +37,6 @@
         "phpstan/phpstan": "^0.12"
     },
     "repositories": [
-        {
-            "url": "https://github.com/financialsistemas/sped-common.git",
-            "type": "vcs"
-        }
     ],
     "autoload": {
         "psr-4": {
