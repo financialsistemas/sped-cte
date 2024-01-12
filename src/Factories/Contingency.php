@@ -82,37 +82,39 @@ class Contingency
     public function activate($acronym, $motive, $type = '')
     {
         $dt = new \DateTime('now');
+//        Estados que utilizam a SVSP - Sefaz Virtual de São Paulo: AP, PE, RR
+//        Estados que utilizam a SVRS - Sefaz Virtual do RS: AC, AL, AM, BA, CE, DF, ES, GO, MA, PA, PB, PI, RJ, RN, RO, SC, SE, TO
+//        Autorizadores: MT MS MG PR RS SP SVRS SVSP AN
         $list = array(
-            'AC' => 'SVRS',
-            'AL' => 'SVRS',
-            'AM' => 'SVRS',
-            'AP' => 'SVSP',
-            'BA' => 'SVRS',
-            'CE' => 'SVRS',
-            'DF' => 'SVRS',
-            'ES' => 'SVRS',
-            'GO' => 'SVRS',
-            'MA' => 'SVRS',
+            'AC' => 'SVSP',
+            'AL' => 'SVSP',
+            'AM' => 'SVSP',
+            'AP' => 'SVRS',
+            'BA' => 'SVSP',
+            'CE' => 'SVSP',
+            'DF' => 'SVSP',
+            'ES' => 'SVSP',
+            'GO' => 'SVSP',
+            'MA' => 'SVSP',
             'MG' => 'SVSP',
             'MS' => 'SVRS',
             'MT' => 'SVRS',
-            'PA' => 'SVRS',
-            'PB' => 'SVRS',
-            'PE' => 'SVSP',
-            'PI' => 'SVRS',
+            'PA' => 'SVSP',
+            'PB' => 'SVSP',
+            'PE' => 'SVRS',
+            'PI' => 'SVSP',
             'PR' => 'SVSP',
-            'RJ' => 'SVRS',
+            'RJ' => 'SVSP',
             'RN' => 'SVRS',
-            'RO' => 'SVRS',
-            'RR' => 'SVSP',
+            'RO' => 'SVSP',
+            'RR' => 'SVRS',
             'RS' => 'SVSP',
-            'SC' => 'SVRS',
-            'SE' => 'SVRS',
+            'SC' => 'SVSP',
+            'SE' => 'SVSP',
             'SP' => 'SVRS',
-            'TO' => 'SVRS'
+            'TO' => 'SVSP'
         );
         $type = strtoupper(str_replace('-', '', $type));
-
         if (empty($type)) {
             $type = (string)$list[$acronym];
         }
@@ -158,6 +160,12 @@ class Contingency
                 break;
             case 'SVSP':
                 $tpEmis = 8;
+                break;
+            case 'EPEC':
+                $tpEmis = 4;
+                break;
+            case 'FA-DA':
+                $tpEmis = 5;
                 break;
             default:
                 if ($type == '') {

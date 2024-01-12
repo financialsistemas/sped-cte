@@ -42,6 +42,7 @@ class Standardize
         'enviCTe',
         'retEnviCte',
         'retCTeOS',
+        'retCTe',
         'retConsReciCTe',
         'consSitCTe',
         'retConsSitCTe',
@@ -51,16 +52,14 @@ class Standardize
         'retEventoCTe',
         'cteRetRecepcaoResult',
         'cteRecepcaoOSResult',
-        'retInutCTe',
-        'inutCTe',
-        'procInutCTe',
         'retConsStatServCte',
         'cteDistDFeInteresseResponse',
         'CTe',
         'CTeOS',
         'eventoCTe',
         'evCancCTe',
-        'protCTe'
+        'protCTe',
+        'retConsStatServCTe'
     ];
 
     /**

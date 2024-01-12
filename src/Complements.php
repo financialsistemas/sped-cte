@@ -131,43 +131,36 @@ class Complements
         $ret->preserveWhiteSpace = false;
         $ret->formatOutput = false;
         $ret->loadXML($response);
-        $retProt = $ret->getElementsByTagName('protCTe');
+        $retProt = $ret->getElementsByTagName('protCTe')->item(0);
         if (!isset($retProt)) {
             throw DocumentsException::wrongDocument(3, "&lt;protCTe&gt;");
         }
-
+        $infProt = $ret->getElementsByTagName('infProt')->item(0);
+        $cStat  = $infProt->getElementsByTagName('cStat')->item(0)->nodeValue;
+        $xMotivo = $infProt->getElementsByTagName('xMotivo')->item(0)->nodeValue;
+        $dig = $infProt->getElementsByTagName("digVal")->item(0);
         $digProt = '000';
-        foreach ($retProt as $rp) {
-            $infProt = $rp->getElementsByTagName('infProt')->item(0);
-            $cStat  = $infProt->getElementsByTagName('cStat')->item(0)->nodeValue;
-            $xMotivo = $infProt->getElementsByTagName('xMotivo')->item(0)->nodeValue;
-            $dig = $infProt->getElementsByTagName("digVal")->item(0);
-            $key = $infProt->getElementsByTagName("chCTe")->item(0)->nodeValue;
-            if (isset($dig)) {
-                $digProt = $dig->nodeValue;
-                if ($digProt == $digCTe && $chave == $key) {
-                    //100 Autorizado
-                    //150 Autorizado fora do prazo
-                    //110 Uso Denegado
-                    //205 CTe Denegada
-                    $cstatpermit = ['100', '150', '110', '205'];
-                    if (!in_array($cStat, $cstatpermit)) {
-                        throw DocumentsException::wrongDocument(4, "[$cStat] $xMotivo");
-                    }
-                    return self::join(
-                        $req->saveXML($cte),
-                        $ret->saveXML($rp),
-                        'cteProc',
-                        $versao
-                    );
-                }
-            }
+        if (isset($dig)) {
+            $digProt = $dig->nodeValue;
         }
-
+        //100 Autorizado
+        //150 Autorizado fora do prazo
+        //110 Uso Denegado
+        //205 CTe Denegada
+        //301 Uso Denegado: Irregularidade fiscal do Emitente..
+        $cstatpermit = ['100', '150', '110', '205', '301'];
+        if (!in_array($cStat, $cstatpermit)) {
+            throw DocumentsException::wrongDocument(4, "[$cStat] $xMotivo");
+        }
         if ($digCTe !== $digProt) {
             throw DocumentsException::wrongDocument(5, "O digest é diferente");
         }
-        return $req->saveXML();
+        return self::join(
+            $req->saveXML($cte),
+            $ret->saveXML($retProt),
+            'cteProc',
+            $versao
+        );
     }
 
     /**

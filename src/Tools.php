@@ -16,75 +16,41 @@ namespace NFePHP\CTe;
  * @link      http://github.com/nfephp-org/sped-cte for the canonical source repository
  */
 
-use NFePHP\Common\Strings;
+use InvalidArgumentException;
 use NFePHP\Common\Signer;
+use NFePHP\Common\Strings;
 use NFePHP\Common\UFList;
-use NFePHP\CTe\Factories\Events;
 use NFePHP\CTe\Common\Tools as ToolsCommon;
 use RuntimeException;
-use InvalidArgumentException;
 
 class Tools extends ToolsCommon
 {
-    const EVT_CONFIRMACAO = 210200;
-    const EVT_CIENCIA = 210210;
-    const EVT_DESCONHECIMENTO = 210220;
-    const EVT_NAO_REALIZADA = 210240;
-
     /**
      * Request authorization to issue CTe in batch with one or more documents
-     * @param array $aXml array of cte's xml
-     * @param string $idLote lote number
-     * @param bool $compactar flag to compress data with gzip
+     * @param string $xml string do xml
      * @return string soap response xml
      */
-    public function sefazEnviaLote(
-        $aXml,
-        $idLote = '',
-        $compactar = false,
-        &$xmls = []
-    ) {
-        if (!is_array($aXml)) {
-            throw new \InvalidArgumentException('Os XML das CTe devem ser passados em um array.');
-        }
+    public function sefazEnviaCTe($xml)
+    {
         $servico = 'CteRecepcao';
         $this->checkContingencyForWebServices($servico);
         if ($this->contingency->type != '') {
             //em modo de contingencia
             //esses xml deverão ser modificados e re-assinados e retornados
-            //no parametro $xmls para serem armazenados pelo aplicativo
-            //pois serão alterados
-            foreach ($aXml as $doc) {
-                //corrigir o xml para o tipo de contigência setado
-                $xmls[] = $this->correctCTeForContingencyMode($doc);
-            }
-            $aXml = $xmls;
+            $xml = $this->correctCTeForContingencyMode($xml);
         }
-
-        $sxml = implode("", $aXml);
-        $sxml = preg_replace("/<\?xml.*?\?>/", "", $sxml);
         $this->servico(
             $servico,
             $this->config->siglaUF,
             $this->tpAmb
         );
-        $request = "<enviCTe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
-            . "<idLote>$idLote</idLote>"
-            . "$sxml"
-            . "</enviCTe>";
-        $this->isValid($this->urlVersion, $request, 'enviCTe');
+        $request = preg_replace("/<\?xml.*\?>/", "", $xml);
+        $this->isValid($this->urlVersion, $request, 'cte');
         $this->lastRequest = $request;
+        $gzdata = base64_encode(gzencode($request, 9));
         //montagem dos dados da mensagem SOAP
-        $parameters = ['cteDadosMsg' => $request];
-        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$request</cteDadosMsg>";
-        $method = $this->urlMethod;
-        if ($compactar) {
-            $gzdata = base64_encode(gzencode($request, 9, FORCE_GZIP));
-            $body = "<cteDadosMsgZip xmlns=\"$this->urlNamespace\">$gzdata</cteDadosMsgZip>";
-            $method = $this->urlMethod."Zip";
-            $parameters = ['cteDadosMsgZip' => $gzdata];
-            $body = "<cteDadosMsgZip xmlns=\"$this->urlNamespace\">$gzdata</cteDadosMsgZip>";
-        }
+        $parameters = ['cteDadosMsg' => $gzdata];
+        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$gzdata</cteDadosMsg>";
         $this->lastResponse = $this->sendRequest($body, $parameters);
         return $this->lastResponse;
     }
@@ -97,7 +63,7 @@ class Tools extends ToolsCommon
     public function sefazEnviaCTeOS($xml)
     {
         //carrega serviço
-        $servico = 'CteRecepcaoOS';
+        $servico = 'CteRecepcao';
         $this->checkContingencyForWebServices($servico);
         $this->servico(
             $servico,
@@ -107,42 +73,9 @@ class Tools extends ToolsCommon
         $request = preg_replace("/<\?xml.*\?>/", "", $xml);
         $this->isValid($this->urlVersion, $request, 'cteOS');
         $this->lastRequest = $request;
-        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$request</cteDadosMsg>";
-        $this->lastResponse = $this->sendRequest($body);
-        return $this->lastResponse;
-    }
-
-    /**
-     * Check status of Batch of CTe sent by receipt of this shipment
-     * @param string $recibo
-     * @param int $tpAmb
-     * @return string
-     */
-    public function sefazConsultaRecibo($recibo, $tpAmb = null)
-    {
-        if (empty($tpAmb)) {
-            $tpAmb = $this->tpAmb;
-        }
-        //carrega serviço
-        $servico = 'CteRetRecepcao';
-        $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $tpAmb
-        );
-        if ($this->urlService == '') {
-            $msg = "A consulta de CTe não está disponível na SEFAZ {$this->config->siglaUF}!!!";
-            throw new RuntimeException($msg);
-        }
-        $request = "<consReciCTe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
-            . "<tpAmb>$tpAmb</tpAmb>"
-            . "<nRec>$recibo</nRec>"
-            . "</consReciCTe>";
-        $this->isValid($this->urlVersion, $request, 'consReciCTe');
-        $this->lastRequest = $request;
-        $parameters = ['cteDadosMsg' => $request];
-        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$request</cteDadosMsg>";
+        $gzdata = base64_encode(gzencode($request, 9));
+        $parameters = ['cteDadosMsg' => $gzdata];
+        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$gzdata</cteDadosMsg>";
         $this->lastResponse = $this->sendRequest($body, $parameters);
         return $this->lastResponse;
     }
@@ -181,136 +114,10 @@ class Tools extends ToolsCommon
     }
 
     /**
-     * Request to disable one or an NFe sequence of a given series
-     * @param int $nSerie
-     * @param int $nIni
-     * @param int $nFin
-     * @param string $xJust
-     * @param int $tpAmb
-     * @return string
-     */
-    public function sefazInutiliza(
-        $nSerie,
-        $nIni,
-        $nFin,
-        $xJust,
-        $tpAmb = null
-    ) {
-        if (empty($tpAmb)) {
-            $tpAmb = $this->tpAmb;
-        }
-        $xJust = Strings::replaceSpecialsChars($xJust);
-        $nSerie = (integer) $nSerie;
-        $nIni = (integer) $nIni;
-        $nFin = (integer) $nFin;
-        $servico = 'CteInutilizacao';
-        $this->checkContingencyForWebServices($servico);
-        //carrega serviço
-        $this->servico(
-            $servico,
-            $this->config->siglaUF,
-            $tpAmb
-        );
-        $cnpj = $this->config->cnpj;
-        $strAno = (string) date('y');
-        $strSerie = str_pad($nSerie, 3, '0', STR_PAD_LEFT);
-        $strInicio = str_pad($nIni, 9, '0', STR_PAD_LEFT);
-        $strFinal = str_pad($nFin, 9, '0', STR_PAD_LEFT);
-        $idInut = "ID"
-            . $this->urlcUF
-            . $cnpj
-            . $this->modelo
-            . $strSerie
-            . $strInicio
-            . $strFinal;
-        //limpa os caracteres indesejados da justificativa
-        $xJust = Strings::replaceSpecialsChars($xJust);
-        //montagem do corpo da mensagem
-        $msg = "<inutCTe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">" .
-            "<infInut Id=\"$idInut\">" .
-            "<tpAmb>$tpAmb</tpAmb>" .
-            "<xServ>INUTILIZAR</xServ>" .
-            "<cUF>$this->urlcUF</cUF>" .
-            "<ano>$strAno</ano>" .
-            "<CNPJ>$cnpj</CNPJ>" .
-            "<mod>$this->modelo</mod>" .
-            "<serie>$nSerie</serie>" .
-            "<nCTIni>$nIni</nCTIni>" .
-            "<nCTFin>$nFin</nCTFin>" .
-            "<xJust>$xJust</xJust>" .
-            "</infInut></inutCTe>";
-        //assina a solicitação
-        $request = Signer::sign(
-            $this->certificate,
-            $msg,
-            'infInut',
-            'Id',
-            $this->algorithm,
-            $this->canonical
-        );
-        $request = Strings::clearXmlString($request, true);
-        $this->isValid($this->urlVersion, $request, 'inutCTe');
-        $this->lastRequest = $request;
-        $parameters = ['cteDadosMsg' => $request];
-        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$request</cteDadosMsg>";
-        $this->lastResponse = $this->sendRequest($body, $parameters);
-        return $this->lastResponse;
-    }
-
-    /**
-     * Search for the registration data of an NFe issuer,
-     * if in contingency mode this service will cause a
-     * Exception and remember not all Sefaz have this service available,
-     * so it will not work in some cases.
-     * @param string $uf  federation unit
-     * @param string $cnpj CNPJ number (optional)
-     * @param string $iest IE number (optional)
-     * @param string $cpf  CPF number (optional)
-     * @return string xml soap response
-     */
-    public function sefazCadastro(
-        $uf,
-        $cnpj = '',
-        $iest = '',
-        $cpf = ''
-    ) {
-        if ($cnpj != '') {
-            $filter = "<CNPJ>$cnpj</CNPJ>";
-            $txtFile = "CNPJ_$cnpj";
-        } elseif ($iest != '') {
-            $filter = "<IE>$iest</IE>";
-            $txtFile = "IE_$iest";
-        } else {
-            $filter = "<CPF>$cpf</CPF>";
-            $txtFile = "CPF_$cpf";
-        }
-        //carrega serviço
-        $servico = 'CteConsultaCadastro';
-        $this->checkContingencyForWebServices($servico);
-        $this->servico(
-            $servico,
-            $uf,
-            $this->tpAmb,
-            true
-        );
-        $request = "<ConsCad xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
-            . "<infCons>"
-            . "<xServ>CONS-CAD</xServ>"
-            . "<UF>$uf</UF>"
-            . "$filter</infCons></ConsCad>";
-        $this->isValid($this->urlVersion, $request, 'consCad');
-        $this->lastRequest = $request;
-        $parameters = ['cteDadosMsg' => $request];
-        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$request</cteDadosMsg>";
-        $this->lastResponse = $this->sendRequest($body, $parameters);
-        return $this->lastResponse;
-    }
-
-    /**
      * Check services status SEFAZ/SVC
      * If $uf is empty use normal check with contingency
      * If $uf is NOT empty ignore contingency mode
-     * @param string $uf  initials of federation unit
+     * @param string $uf initials of federation unit
      * @param int $tpAmb
      * @return string xml soap response
      */
@@ -319,22 +126,21 @@ class Tools extends ToolsCommon
         if (empty($tpAmb)) {
             $tpAmb = $this->tpAmb;
         }
-        $ignoreContingency = true;
         if (empty($uf)) {
             $uf = $this->config->siglaUF;
-            $ignoreContingency = false;
         }
         $servico = 'CteStatusServico';
         $this->checkContingencyForWebServices($servico);
         $this->servico(
             $servico,
             $uf,
-            $tpAmb,
-            $ignoreContingency
+            $tpAmb
         );
-        $request = "<consStatServCte xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
+        $cUF = $this->getcUF($uf);
+        $request = "<consStatServCTe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<tpAmb>$tpAmb</tpAmb>"
-            . "<xServ>STATUS</xServ></consStatServCte>";
+            . "<cUF>$cUF</cUF>"
+            . "<xServ>STATUS</xServ></consStatServCTe>";
         $this->isValid($this->urlVersion, $request, 'consStatServCte');
         $this->lastRequest = $request;
         $parameters = ['cteDadosMsg' => $request];
@@ -346,8 +152,8 @@ class Tools extends ToolsCommon
     /**
      * Service for the distribution of summary information and
      * electronic tax documents of interest to an actor.
-     * @param integer $ultNSU  last NSU number recived
-     * @param integer $numNSU  NSU number you wish to consult
+     * @param integer $ultNSU last NSU number recived
+     * @param integer $numNSU NSU number you wish to consult
      * @param string $fonte data source 'AN' and for some cases it may be 'RS'
      * @return string
      */
@@ -355,7 +161,8 @@ class Tools extends ToolsCommon
         $ultNSU = 0,
         $numNSU = 0,
         $fonte = 'AN'
-    ) {
+    )
+    {
         //carrega serviço
         $servico = 'CTeDistribuicaoDFe';
         $this->checkContingencyForWebServices($servico);
@@ -374,13 +181,13 @@ class Tools extends ToolsCommon
         }
         //monta a consulta
         $consulta = "<distDFeInt xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
-            . "<tpAmb>".$this->tpAmb."</tpAmb>"
+            . "<tpAmb>" . $this->tpAmb . "</tpAmb>"
             . "<cUFAutor>$cUF</cUFAutor>"
-            . ((strlen($this->config->cnpj)==14) ?
-                "<CNPJ>".$this->config->cnpj."</CNPJ>" :
-                "<CPF>".$this->config->cnpj."</CPF>"
-              )
-            . $tagNSU."</distDFeInt>";
+            . ((strlen($this->config->cnpj) == 14) ?
+                "<CNPJ>{$this->config->cnpj}</CNPJ>" :
+                "<CPF>{$this->config->cnpj}</CPF>"
+            )
+            . $tagNSU . "</distDFeInt>";
         //valida o xml da requisição
         $this->isValid($this->urlVersion, $consulta, 'distDFeInt');
         $this->lastRequest = $consulta;
@@ -398,9 +205,9 @@ class Tools extends ToolsCommon
 
     /**
      * Request authorization for Letter of Correction
-     * @param  string $chave
-     * @param  array $infCorrecao
-     * @param  int $nSeqEvento
+     * @param string $chave
+     * @param array $infCorrecao
+     * @param int $nSeqEvento
      * @return string
      */
     public function sefazCCe($chave, $infCorrecao = [], $nSeqEvento = 1)
@@ -421,11 +228,11 @@ class Tools extends ToolsCommon
      * Request extension of the term of return of products of an NF-e of
      * consignment for industrialization to order with suspension of ICMS
      * in interstate operations
-     * @param  string  $chNFe
-     * @param  string  $nProt
-     * @param  integer $tipo 1-primerio prazo, 2-segundo prazo
-     * @param  array   $itens
-     * @param  integer $nSeqEvento
+     * @param string $chNFe
+     * @param string $nProt
+     * @param integer $tipo 1-primerio prazo, 2-segundo prazo
+     * @param array $itens
+     * @param integer $nSeqEvento
      * @return string
      */
     public function sefazEPP(
@@ -434,7 +241,8 @@ class Tools extends ToolsCommon
         $itens = array(),
         $tipo = 1,
         $nSeqEvento = 1
-    ) {
+    )
+    {
         $uf = UFList::getUFByCode(substr($chNFe, 0, 2));
         $tpEvento = 111500;
         if ($tipo == 2) {
@@ -446,7 +254,7 @@ class Tools extends ToolsCommon
                 . $item[0]
                 . "\"><qtdeItem>"
                 . $item[1]
-                ."</qtdeItem></itemPedido>";
+                . "</qtdeItem></itemPedido>";
         }
         return $this->sefazEvento(
             $uf,
@@ -461,16 +269,17 @@ class Tools extends ToolsCommon
      * Request the cancellation of the request for an extension of the term
      * of return of products of an NF-e of consignment for industrialization
      * by order with suspension of ICMS in interstate operations
-     * @param  string  $chNFe
-     * @param  string  $nProt
-     * @param  integer $nSeqEvento
+     * @param string $chNFe
+     * @param string $nProt
+     * @param integer $nSeqEvento
      * @return string
      */
     public function sefazECPP(
         $chNFe,
         $nProt,
         $nSeqEvento = 1
-    ) {
+    )
+    {
         $uf = UFList::getUFByCode(substr($chNFe, 0, 2));
         $tpEvento = 111502;
         $origEvent = 111500;
@@ -481,9 +290,9 @@ class Tools extends ToolsCommon
         $sSeqEvento = str_pad($nSeqEvento, 2, "0", STR_PAD_LEFT);
         $idPedidoCancelado = "ID$origEvent$chNFe$sSeqEvento";
         $tagAdic = "<idPedidoCancelado>"
-                . "$idPedidoCancelado"
-                . "</idPedidoCancelado>"
-                . "<nProt>$nProt</nProt>";
+            . "$idPedidoCancelado"
+            . "</idPedidoCancelado>"
+            . "<nProt>$nProt</nProt>";
         return $this->sefazEvento(
             $uf,
             $chNFe,
@@ -495,9 +304,9 @@ class Tools extends ToolsCommon
 
     /**
      * Requires cte cancellation
-     * @param  string $chave key of CTe
-     * @param  string $xJust justificative 255 characters max
-     * @param  string $nProt protocol number
+     * @param string $chave key of CTe
+     * @param string $xJust justificative 255 characters max
+     * @param string $nProt protocol number
      * @return string
      */
     public function sefazCancela($chave, $xJust, $nProt)
@@ -536,7 +345,8 @@ class Tools extends ToolsCommon
         $xJust = '',
         $nSeqEvento = 1,
         $ufEvento = 'RS'
-    ) {
+    )
+    {
         $tagAdic = '';
         if ($tpEvento == 610110) {
             $xJust = Strings::replaceSpecialsChars(substr(trim($xJust), 0, 255));
@@ -557,7 +367,7 @@ class Tools extends ToolsCommon
 
     /**
      * Request authorization for issuance in contingency EPEC
-     * @param  string $xml
+     * @param string $xml
      * @return string
      */
     public function sefazEPEC(&$xml)
@@ -602,7 +412,7 @@ class Tools extends ToolsCommon
             }
         }
         $dIE = !empty($dest->getElementsByTagName('IE')->item(0)->nodeValue) ?
-                $dest->getElementsByTagName('IE')->item(0)->nodeValue : '';
+            $dest->getElementsByTagName('IE')->item(0)->nodeValue : '';
         $destIE = '';
         if (!empty($dIE)) {
             $destIE = "<IE>$dIE</IE>";
@@ -640,13 +450,14 @@ class Tools extends ToolsCommon
      * @param string $tagAdic
      * @return string
      */
-    public function sefazEvento(
+    private function sefazEvento(
         $uf,
         $chave,
         $tpEvento,
         $nSeqEvento = 1,
         $tagAdic = ''
-    ) {
+    )
+    {
         $ignore = false;
         if ($tpEvento == 110140) {
             $ignore = true;
@@ -659,33 +470,29 @@ class Tools extends ToolsCommon
             $this->tpAmb,
             $ignore
         );
-        $cnpj = $this->config->cnpj;
-        $cpf = $this->config->cpf;
         $dt = new \DateTime('now', new \DateTimeZone($this->timezone));
         $dhEvento = $dt->format('Y-m-d\TH:i:sP');
-        $sSeqEvento = str_pad($nSeqEvento, 2, "0", STR_PAD_LEFT);
-        $eventId = "ID".$tpEvento.$chave.$sSeqEvento;
+        $sSeqEvento = str_pad($nSeqEvento, 3, "0", STR_PAD_LEFT);
+        $eventId = "ID" . $tpEvento . $chave . $sSeqEvento;
         $cOrgao = UFList::getCodeByUF($uf);
-
         $request = "<eventoCTe xmlns=\"$this->urlPortal\" versao=\"$this->urlVersion\">"
             . "<infEvento Id=\"$eventId\">"
             . "<cOrgao>$cOrgao</cOrgao>"
             . "<tpAmb>$this->tpAmb</tpAmb>";
-        if (!empty($cnpj)) {
-            $request .= "<CNPJ>$cnpj</CNPJ>";
+        if (strlen($this->config->cnpj) == 14) {
+            $request .= "<CNPJ>{$this->config->cnpj}</CNPJ>";
         } else {
-            $request .= "<CPF>$cpf</CPF>";
+            $request .= "<CPF>{$this->config->cnpj}</CPF>";
         }
         $request .= "<chCTe>$chave</chCTe>"
             . "<dhEvento>$dhEvento</dhEvento>"
             . "<tpEvento>$tpEvento</tpEvento>"
-            . "<nSeqEvento>$nSeqEvento</nSeqEvento>"
+            . "<nSeqEvento>$sSeqEvento</nSeqEvento>"
             . "<detEvento versaoEvento=\"$this->urlVersion\">"
             . "$tagAdic"
             . "</detEvento>"
             . "</infEvento>"
             . "</eventoCTe>";
-
         //assinatura dos dados
         $request = Signer::sign(
             $this->certificate,
@@ -695,7 +502,6 @@ class Tools extends ToolsCommon
             $this->algorithm,
             $this->canonical
         );
-
         $request = Strings::clearXmlString($request, true);
         $this->isValid($this->urlVersion, $request, 'eventoCTe');
         $this->lastRequest = $request;
@@ -708,7 +514,7 @@ class Tools extends ToolsCommon
     /**
      * Request the NFe download already manifested by its recipient, by the key
      * using new service in CTeDistribuicaoDFe
-     * @param  string $chave
+     * @param string $chave
      * @return string
      */
     public function sefazDownload($chave)
@@ -723,12 +529,12 @@ class Tools extends ToolsCommon
             true
         );
         //monta a consulta
-        $consulta = "<consChCTe><chCTe>$chave</chCTe></consChCTe>"
-            . ((strlen($this->config->cnpj)==14) ?
-                "<CNPJ>".$this->config->cnpj."</CNPJ>" :
-                "<CPF>".$this->config->cnpj."</CPF>"
-              )
-            ."</distDFeInt>";
+        $consulta = "<consChNFe><chNFe>$chave</chNFe></consChNFe>"
+            . ((strlen($this->config->cnpj) == 14) ?
+                "<CNPJ>{$this->config->cnpj}</CNPJ>" :
+                "<CPF>{$this->config->cnpj}</CPF>"
+            )
+            . "</distDFeInt>";
         //valida o xml da requisição
         $this->isValid($this->urlVersion, $consulta, 'distDFeInt');
         $this->lastRequest = $consulta;
@@ -776,14 +582,14 @@ class Tools extends ToolsCommon
             . "</admCscNFCe>";
         if ($indOp == 3) {
             $request = "<admCscNFCe versao=\"$this->urlVersion\" xmlns=\"$this->urlPortal\">"
-            . "<tpAmb>$this->tpAmb</tpAmb>"
-            . "<indOp>$indOp</indOp>"
-            . "<raizCNPJ>$raizCNPJ</raizCNPJ>"
-            . "<dadosCsc>"
-            . "<idCsc>".$this->config->CSCid."</idCsc>"
-            . "<codigoCsc>".$this->config->CSC."</codigoCsc>"
-            . "</dadosCsc>"
-            . "</admCscNFCe>";
+                . "<tpAmb>$this->tpAmb</tpAmb>"
+                . "<indOp>$indOp</indOp>"
+                . "<raizCNPJ>$raizCNPJ</raizCNPJ>"
+                . "<dadosCsc>"
+                . "<idCsc>" . $this->config->CSCid . "</idCsc>"
+                . "<codigoCsc>" . $this->config->CSC . "</codigoCsc>"
+                . "</dadosCsc>"
+                . "</admCscNFCe>";
         }
         //o xsd não está disponivel
         //$this->isValid($this->urlVersion, $request, 'cscNFCe');
@@ -796,7 +602,7 @@ class Tools extends ToolsCommon
 
     /**
      * Checks the validity of an CTe, normally used for received CTe
-     * @param  string $cte
+     * @param string $cte
      * @return boolean
      */
     public function sefazValidate($cte)
@@ -812,7 +618,7 @@ class Tools extends ToolsCommon
         $dom->loadXML($cte);
         //verifica a validade no webservice da SEFAZ
         $tpAmb = $dom->getElementsByTagName('tpAmb')->item(0)->nodeValue;
-        $infCTe  = $dom->getElementsByTagName('infCte')->item(0);
+        $infCTe = $dom->getElementsByTagName('infCte')->item(0);
         $chCTe = preg_replace('/[^0-9]/', '', $infCTe->getAttribute("Id"));
         $protocol = $dom->getElementsByTagName('nProt')->item(0)->nodeValue;
         $digval = $dom->getElementsByTagName('DigestValue')->item(0)->nodeValue;
@@ -847,16 +653,16 @@ class Tools extends ToolsCommon
 
     /**
      * Requires CE
-     * @param  string $chave key of CTe
-     * @param  string $nProt Protocolo do CTe
-     * @param  string $xNome Nome de quem recebeu a entrega
-     * @param  string $nDoc  Documento de quem recebeu a entrega
-     * @param  string $hash  Hash da Chave de acesso do CT-e + Imagem da assinatura no formato Base64
-     * @param  int    $latitude  Latitude do ponto da entrega
-     * @param  int    $longitude  Longitude do ponto da entrega
-     * @param  int    $nSeqEvento No. sequencial do evento
-     * @param  string $dhEventoEntrega Data e hora da geração do hash da entrega
-     * @param  array  $aNFes Chave das NFes entregues
+     * @param string $chave key of CTe
+     * @param string $nProt Protocolo do CTe
+     * @param string $xNome Nome de quem recebeu a entrega
+     * @param string $nDoc Documento de quem recebeu a entrega
+     * @param string $hash Hash da Chave de acesso do CT-e + Imagem da assinatura no formato Base64
+     * @param string|null $latitude Latitude do ponto da entrega
+     * @param string|null $longitude Longitude do ponto da entrega
+     * @param int $nSeqEvento No. sequencial do evento
+     * @param string $dhEventoEntrega Data e hora da geração do hash da entrega
+     * @param array $aNFes Chave das NFes entregues
      * @return string
      */
     public function sefazCE(
@@ -870,7 +676,8 @@ class Tools extends ToolsCommon
         $nSeqEvento,
         $dhEventoEntrega,
         $aNFes = []
-    ) {
+    )
+    {
         $uf = $this->validKeyByUF($chave);
         $tpEvento = 110180;
 
@@ -882,14 +689,24 @@ class Tools extends ToolsCommon
                 . "</infEntrega>";
         }
 
+        $infLatitude = '';
+        if ($latitude) {
+            $infLatitude = "<latitude>$latitude</latitude>";
+        }
+
+        $infLongitude = '';
+        if ($longitude) {
+            $infLongitude = "<longitude>$longitude</longitude>";
+        }
+
         $tagAdic = "<evCECTe>"
             . "<descEvento>Comprovante de Entrega do CT-e</descEvento>"
             . "<nProt>$nProt</nProt>"
             . "<dhEntrega>$dhEventoEntrega</dhEntrega>"
             . "<nDoc>$nDoc</nDoc>"
             . "<xNome>$xNome</xNome>"
-            . "<latitude>$latitude</latitude>"
-            . "<longitude>$longitude</longitude>"
+            . $infLatitude
+            . $infLongitude
             . "<hashEntrega>$hash</hashEntrega>"
             . "<dhHashEntrega>$dhEventoEntrega</dhHashEntrega>"
             . $infEntrega
@@ -905,10 +722,10 @@ class Tools extends ToolsCommon
 
     /**
      * Requires CE cancellation
-     * @param  string $chave key of CTe
-     * @param  string $nProt protocolo do CTe
-     * @param  string $nProtCE protocolo do CE
-     * @param  int    $nSeqEvento No. sequencial do evento
+     * @param string $chave key of CTe
+     * @param string $nProt protocolo do CTe
+     * @param string $nProtCE protocolo do CE
+     * @param int $nSeqEvento No. sequencial do evento
      * @return string
      */
     public function sefazCancelaCE($chave, $nProt, $nProtCE, $nSeqEvento)
@@ -931,7 +748,7 @@ class Tools extends ToolsCommon
 
     /**
      *
-     * @param  int $tpEvento
+     * @param int $tpEvento
      * @return \stdClass
      * @throws Exception
      */
@@ -974,7 +791,7 @@ class Tools extends ToolsCommon
                 break;
             default:
                 $msg = "O código do tipo de evento informado não corresponde a "
-                . "nenhum evento estabelecido.";
+                    . "nenhum evento estabelecido.";
                 throw new RuntimeException($msg);
         }
         return $std;
@@ -1012,6 +829,6 @@ class Tools extends ToolsCommon
             "tomador, remetente ou do destinatario;III - a data de emissao ou " .
             "de saida." .
             "</xCondUso>" .
-        "</evCCeCTe>";
+            "</evCCeCTe>";
     }
 }
