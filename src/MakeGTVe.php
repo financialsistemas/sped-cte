@@ -7,7 +7,7 @@ namespace NFePHP\CTe;
  * @category  Library
  * @package   nfephp-org/sped-cte
  * @copyright 2009-2023 NFePHP
- * @name      Make.php
+ * @name      MakeGTVe.php
  * @license   http://www.gnu.org/licenses/gpl.html GNU/GPL v.3
  * @link      http://github.com/nfephp-org/sped-cte for the canonical source repository
  * @author    Cleiton Perin <cperin20 at gmail dot com>
@@ -1837,6 +1837,15 @@ class MakeGTVe
     private function equilizeParameters(stdClass $std, $possible)
     {
         return Strings::equilizeParameters($std, $possible, $this->replaceAccentedChars);
+    }
+
+    /**
+     * Calcula hash sha1 retornando Base64Binary
+     */
+    protected function hashCSRT(string $CSRT): string
+    {
+        $comb = $CSRT . $this->chCTe;
+        return base64_encode(sha1($comb, true));
     }
 
     /**

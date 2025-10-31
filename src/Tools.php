@@ -56,6 +56,36 @@ class Tools extends ToolsCommon
     }
 
     /**
+     * Envia CTe Simplificado
+     * @param string $xml string do xml
+     * @return string soap response xml
+     */
+    public function sefazEnviaCTeSimp($xml)
+    {
+        $servico = 'CteRecepcaoSimp';
+        $this->checkContingencyForWebServices($servico);
+        if ($this->contingency->type != '') {
+            //em modo de contingencia
+            //esses xml deverão ser modificados e re-assinados e retornados
+            $xml = $this->correctCTeForContingencyMode($xml);
+        }
+        $this->servico(
+            $servico,
+            $this->config->siglaUF,
+            $this->tpAmb
+        );
+        $request = preg_replace("/<\?xml.*\?>/", "", $xml);
+        $this->isValid($this->urlVersion, $request, 'cteSimp');
+        $this->lastRequest = $request;
+        $gzdata = base64_encode(gzencode($request, 9));
+        //montagem dos dados da mensagem SOAP
+        $parameters = ['cteDadosMsg' => $gzdata];
+        $body = "<cteDadosMsg xmlns=\"$this->urlNamespace\">$gzdata</cteDadosMsg>";
+        $this->lastResponse = $this->sendRequest($body, $parameters);
+        return $this->lastResponse;
+    }
+
+    /**
      * Request authorization to issue CTe OS with one document only
      * @param string $xml
      * @return string
@@ -161,8 +191,7 @@ class Tools extends ToolsCommon
         $ultNSU = 0,
         $numNSU = 0,
         $fonte = 'AN'
-    )
-    {
+    ) {
         //carrega serviço
         $servico = 'CTeDistribuicaoDFe';
         $this->checkContingencyForWebServices($servico);
@@ -241,8 +270,7 @@ class Tools extends ToolsCommon
         $itens = array(),
         $tipo = 1,
         $nSeqEvento = 1
-    )
-    {
+    ) {
         $uf = UFList::getUFByCode(substr($chNFe, 0, 2));
         $tpEvento = 111500;
         if ($tipo == 2) {
@@ -278,8 +306,7 @@ class Tools extends ToolsCommon
         $chNFe,
         $nProt,
         $nSeqEvento = 1
-    )
-    {
+    ) {
         $uf = UFList::getUFByCode(substr($chNFe, 0, 2));
         $tpEvento = 111502;
         $origEvent = 111500;
@@ -345,8 +372,7 @@ class Tools extends ToolsCommon
         $xJust = '',
         $nSeqEvento = 1,
         $ufEvento = 'RS'
-    )
-    {
+    ) {
         $tagAdic = '';
         if ($tpEvento == 610110) {
             $xJust = Strings::replaceSpecialsChars(substr(trim($xJust), 0, 255));
@@ -355,6 +381,12 @@ class Tools extends ToolsCommon
                 . "<indDesacordoOper>1</indDesacordoOper>"
                 . "<xObs>$xJust</xObs>"
                 . "</evPrestDesacordo>";
+        }
+        if ($tpEvento == 610111) {
+            $tagAdic = "<evCancPrestDesacordo>"
+                . "<descEvento>Cancelamento Prestacao do Servico em Desacordo</descEvento>"
+                . "<nProtEvPrestDes>$xJust</nProtEvPrestDes>"
+                . "</evCancPrestDesacordo>";
         }
         return $this->sefazEvento(
             $ufEvento,
@@ -431,7 +463,6 @@ class Tools extends ToolsCommon
             . "<vICMS>$vICMS</vICMS>"
             . "<vST>$vST</vST>"
             . "</dest>";
-
         return $this->sefazEvento(
             'AN',
             $chNFe,
@@ -456,8 +487,7 @@ class Tools extends ToolsCommon
         $tpEvento,
         $nSeqEvento = 1,
         $tagAdic = ''
-    )
-    {
+    ) {
         $ignore = false;
         if ($tpEvento == 110140) {
             $ignore = true;
@@ -563,7 +593,7 @@ class Tools extends ToolsCommon
         if ($this->modelo != 65) {
             throw new RuntimeException(
                 "Esta operação é exclusiva de NFCe modelo [65], "
-                . "você está usando modelo [55]."
+                    . "você está usando modelo [55]."
             );
         }
         $raizCNPJ = substr($this->config->cnpj, 0, -6);
@@ -676,8 +706,7 @@ class Tools extends ToolsCommon
         $nSeqEvento,
         $dhEventoEntrega,
         $aNFes = []
-    )
-    {
+    ) {
         $uf = $this->validKeyByUF($chave);
         $tpEvento = 110180;
 
@@ -747,6 +776,109 @@ class Tools extends ToolsCommon
     }
 
     /**
+     * Requires IE
+     * @param string $chave key of CTe
+     * @param string $nProt Protocolo do CTe
+     * @param string $nTentativa Número da tentativa de entrega que não teve sucesso
+     * @param string $tpMotivo Motivo do Insucesso
+     * @param string|null $xJustMotivo Justificativa do Motivo de insucesso
+     * @param string $hash Hash da Chave de acesso do CT-e + Imagem da assinatura no formato Base64
+     * @param string|null $latitude Latitude do ponto da entrega
+     * @param string|null $longitude Longitude do ponto da entrega
+     * @param int $nSeqEvento No. sequencial do evento
+     * @param string $dhTentativaEntrega Data e hora da geração do hash da tentativa de entrega
+     * @param array $aNFes Chave das NFes entregues
+     * @return string
+     */
+    public function sefazIE(
+        $chave,
+        $nProt,
+        $nTentativa,
+        $tpMotivo,
+        $xJustMotivo,
+        $hash,
+        $latitude,
+        $longitude,
+        $nSeqEvento,
+        $dhTentativaEntrega,
+        $aNFes = []
+    ) {
+        $uf = $this->validKeyByUF($chave);
+        $tpEvento = 110190;
+
+        /* relaciona as chaves das NFes */
+        $infEntrega = '';
+        foreach ($aNFes as $NFe) {
+            $infEntrega .= "<infEntrega>"
+                . "<chNFe>$NFe</chNFe>"
+                . "</infEntrega>";
+        }
+
+        $infLatitude = '';
+        if ($latitude) {
+            $infLatitude = "<latitude>$latitude</latitude>";
+        }
+
+        $infLongitude = '';
+        if ($longitude) {
+            $infLongitude = "<longitude>$longitude</longitude>";
+        }
+
+        $infJustMotivo = '';
+        if ($xJustMotivo) {
+            $infJustMotivo = "<xJustMotivo>$xJustMotivo</xJustMotivo>";
+        }
+
+        $tagAdic = "<evIECTe>"
+            . "<descEvento>Insucesso na Entrega do CT-e</descEvento>"
+            . "<nProt>$nProt</nProt>"
+            . "<dhTentativaEntrega>$dhTentativaEntrega</dhTentativaEntrega>"
+            . "<nTentativa>$nTentativa</nTentativa>"
+            . "<tpMotivo>$tpMotivo</tpMotivo>"
+            . $infJustMotivo
+            . $infLatitude
+            . $infLongitude
+            . "<hashTentativaEntrega>$hash</hashTentativaEntrega>"
+            . "<dhHashTentativaEntrega>$dhTentativaEntrega</dhHashTentativaEntrega>"
+            . $infEntrega
+            . "</evIECTe>";
+
+        return $this->sefazEvento(
+            $uf,
+            $chave,
+            $tpEvento,
+            $nSeqEvento,
+            $tagAdic
+        );
+    }
+
+    /**
+     * Requires IE cancellation
+     * @param string $chave key of CTe
+     * @param string $nProt protocolo do CTe
+     * @param string $nProtIE protocolo do IE
+     * @param int $nSeqEvento No. sequencial do evento
+     * @return string
+     */
+    public function sefazCancelaIE($chave, $nProt, $nProtIE, $nSeqEvento)
+    {
+        $uf = $this->validKeyByUF($chave);
+        $tpEvento = 110191;
+        $tagAdic = "<evCancIECTe>"
+            . "<descEvento>Cancelamento do Insucesso de Entrega do CT-e</descEvento>"
+            . "<nProt>$nProt</nProt>"
+            . "<nProtIE>$nProtIE</nProtIE>"
+            . "</evCancIECTe>";
+        return $this->sefazEvento(
+            $uf,
+            $chave,
+            $tpEvento,
+            $nSeqEvento,
+            $tagAdic
+        );
+    }
+
+    /**
      *
      * @param int $tpEvento
      * @return \stdClass
@@ -783,6 +915,11 @@ class Tools extends ToolsCommon
                 //cancelamento do comprovante de entrega
                 $std->alias = 'evCancCECTe';
                 $std->desc = 'Cancelamento do Comprovante de Entrega';
+                break;
+            case 110190:
+                //insucesso na entrega
+                $std->alias = 'evIECTe';
+                $std->desc = 'Insucesso na Entrega';
                 break;
             case 610110:
                 //Serviço em desacordo
