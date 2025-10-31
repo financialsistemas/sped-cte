@@ -29,7 +29,7 @@
     <UF>
         <sigla>MS</sigla>
         <homologacao>
-            <CteRecepcao method='cteRecepcaoOS' operation='CTeRecepcaoOSV4' version='4.00'></CteRecepcao>
+            <CteRecepcao method='cteRecepcaoOS' operation='CTeRecepcaoOSV4' version='4.00'>https://homologacao.cte.ms.gov.br/ws/CTeRecepcaoOSV4</CteRecepcao>
             <CteConsultaProtocolo method='cteConsultaCT' operation='CTeConsultaV4' version='4.00'>https://homologacao.cte.ms.gov.br/ws/CTeConsultaV4</CteConsultaProtocolo>
             <CteStatusServico method='cteStatusServicoCT' operation='CTeStatusServicoV4' version='4.00'>https://homologacao.cte.ms.gov.br/ws/CTeStatusServicoV4</CteStatusServico>
             <CteRecepcaoEvento method='cteRecepcaoEvento' operation='CTeRecepcaoEventoV4' version='4.00'>https://homologacao.cte.ms.gov.br/ws/CTeRecepcaoEventoV4</CteRecepcaoEvento>
