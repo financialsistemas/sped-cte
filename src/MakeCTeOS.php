@@ -242,11 +242,7 @@ class MakeCTeOS
     /**
      * @var DOMElement
      */
-    protected $gIBSCredPres;
-    /**
-     * @var DOMElement
-     */
-    protected $gCBSCredPres;
+    protected $gEstornoCred;
     /**
      * @var DOMElement
      */
@@ -365,16 +361,16 @@ class MakeCTeOS
                 if (isset($this->gTribRegular)) {
                     $this->dom->appChild($node, $this->gTribRegular, 'Falta tag "gIBSCBS"');
                 }
-                if (isset($this->gIBSCredPres)) {
-                    $this->dom->appChild($node, $this->gIBSCredPres, 'Falta tag "gIBSCBS"');
+                if (isset($this->gTribCompraGov)) {
+                    $this->dom->appChild($node, $this->gTribCompraGov, 'Falta tag "gIBSCBS"');
                 }
-                if (isset($this->gCBSCredPres)) {
-                    $this->dom->appChild($node, $this->gCBSCredPres, 'Falta tag "gIBSCBS"');
+                if (isset($this->gEstornoCred)) {
+                    $this->dom->appChild($this->IBSCBS, $this->gEstornoCred, 'Falta tag "IBSCBS"');
                 }
                 $this->dom->appChild($this->imp, $this->IBSCBS, 'Falta tag "imp"');
-            }
-            if (isset($this->vTotDFe)) {
-                $this->dom->appChild($this->imp, $this->vTotDFe, 'Falta tag "imp"');
+                if (isset($this->vTotDFe)) {
+                    $this->dom->appChild($this->imp, $this->vTotDFe, 'Falta tag "imp"');
+                }
             }
         }
 
@@ -1639,6 +1635,22 @@ class MakeCTeOS
     }
 
     /**
+     * tagVTotDFe
+     * Valor total do documento fiscal (vTPrest + total do IBS + total da CBS)
+     *
+     * @return DOMElement
+     */
+    public function tagVTotDFe($std)
+    {
+        $possible = [
+            'vTotDFe',
+        ];
+        $std = $this->equilizeParameters($std, $possible);
+        $this->vTotDFe = $this->dom->createElement("vTotDFe", $this->conditionalNumberFormatting($std->vTotDFe));
+        return $this->vTotDFe;
+    }
+
+    /**
      * tagInfTribFed
      * Informações do Impostos Federais
      * CTe OS
@@ -2431,6 +2443,7 @@ class MakeCTeOS
         $possible = [
             'CST',
             'cClassTrib',
+            'indDoacao', // opcional Indicador de Doação
             'vBC',
             //dados IBS Estadual
             'gIBSUF_pIBSUF', //opcional Alíquota do IBS de competência das UF 3v2-4, OBRIGATÓRIO se vBC for informado
@@ -2461,11 +2474,14 @@ class MakeCTeOS
             'gCBS_pRedAliq', //opcional Percentual da redução de alíquota 3v2-4
             'gCBS_pAliqEfet', //opcional Alíquota Efetiva da CBS que será aplicada a Base de Cálculo 3v2-4
             'gCBS_vCBS', //opcional Valor da CBS 13v2
-            // total
-            'vTotDFe'
         ];
         $std = $this->equilizeParameters($std, $possible);
         $identificador = "UB12 <IBSCBS> -";
+
+        if (empty($std->vIBS)) {
+            //vIBS = vIBSUF + vIBSMun
+            $std->vIBS = ($std->gIBSUF_vIBSUF ?? 0) + ($std->gIBSMun_vIBSMun ?? 0);
+        }
 
         $ibscbs = $this->dom->createElement("IBSCBS");
         $this->dom->addChild(
@@ -2481,6 +2497,13 @@ class MakeCTeOS
             $std->cClassTrib,
             true,
             "$identificador Código de Classificação Tributária do IBS e CBS (cClassTrib)"
+        );
+        $this->dom->addChild(
+            $ibscbs,
+            'indDoacao',
+            $std->indDoacao,
+            false,
+            "$identificador Indicador de Doação (indDoacao)"
         );
         //gIBSCBS é opcional e também é um choice com IBSCBSMono
         if (!empty($std->vBC)) {
@@ -2708,10 +2731,6 @@ class MakeCTeOS
             $ibscbs->appendChild($gIBSCBS);
         }
         $this->IBSCBS = $ibscbs;
-        if (!empty($std->vTotDFe)) {
-            $this->vTotDFe = $this->dom->createElement("vTotDFe", $this->conditionalNumberFormatting($std->vTotDFe));
-        }
-
         return $ibscbs;
     }
 
@@ -2800,105 +2819,37 @@ class MakeCTeOS
     }
 
     /**
-     * Grupo de Informações do Crédito Presumido referente ao IBS UB73 pai UB15
-     * $this->aIBSCredPres[$item]/gIBSCredPres
-     * IBSCBS/gIBSCBS/gIBSCredPres
+     * Tipo Estorno de Crédito UB116 pai UB12
      * @param stdClass $std
      * @return DOMElement
      * @throws DOMException
      */
-    public function tagIBSCredPres(stdClass $std): DOMElement
+    public function taggEstornoCred(stdClass $std): DOMElement
     {
         $possible = [
-            'cCredPres',
-            'pCredPres',
-            'vCredPres',
-            'vCredPresCondSus',
+            'vIBSEstCred',
+            'vCBSEstCred',
         ];
         $std = $this->equilizeParameters($std, $possible);
-        $identificador = "UB73 <gIBSCredPres> -";
-        $gIBSCredPres = $this->dom->createElement("gIBSCredPres");
-        $this->dom->addChild(
-            $gIBSCredPres,
-            "cCredPres",
-            $std->cCredPres,
-            true,
-            "$identificador Código de Classificação do Crédito Presumido (cCredPres)"
-        );
-        $this->dom->addChild(
-            $gIBSCredPres,
-            "pCredPres",
-            $this->conditionalNumberFormatting($std->pCredPres, 4),
-            true,
-            "$identificador Percentual do Crédito Presumido (pCredPres)"
-        );
-        $this->dom->addChild(
-            $gIBSCredPres,
-            "vCredPres",
-            $this->conditionalNumberFormatting($std->vCredPres),
-            true,
-            "$identificador Valor do Crédito Presumido (vCredPres)"
-        );
-        $this->dom->addChild(
-            $gIBSCredPres,
-            "vCredPresCondSus",
-            $this->conditionalNumberFormatting($std->vCredPresCondSus),
-            true,
-            "$identificador Valor do Crédito Presumido em condição suspensiva. (vCredPres)"
-        );
-        $this->gIBSCredPres = $gIBSCredPres;
-        return $gIBSCredPres;
-    }
+        $identificador = "UB116 gEstornoCred";
 
-    /**
-     * Grupo de Informações do Crédito Presumido referente ao CBS UB78 pai UB15
-     * $this->aCBSCredPres[$item]/gCBSCredPres
-     * IBSCBS/gCBSCBS/gCBSCredPres
-     * @param stdClass $std
-     * @return DOMElement
-     * @throws DOMException
-     */
-    public function tagCBSCredPres(stdClass $std): DOMElement
-    {
-        $possible = [
-            'cCredPres',
-            'pCredPres',
-            'vCredPres',
-            'vCredPresCondSus',
-        ];
-        $std = $this->equilizeParameters($std, $possible);
-        $identificador = "UB78 <gCBSCredPres> -";
-        $gCBSCredPres = $this->dom->createElement("gCBSCredPres");
+        $estorno = $this->dom->createElement("gEstornoCred");
         $this->dom->addChild(
-            $gCBSCredPres,
-            "cCredPres",
-            $std->cCredPres,
+            $estorno,
+            "vIBSEstCred",
+            $this->conditionalNumberFormatting($std->vIBSEstCred),
             true,
-            "$identificador Código de Classificação do Crédito Presumido (cCredPres)"
+            "$identificador Valor do IBS a ser estornado (vIBSEstCred)"
         );
         $this->dom->addChild(
-            $gCBSCredPres,
-            "pCredPres",
-            $this->conditionalNumberFormatting($std->pCredPres, 4),
+            $estorno,
+            "vCBSEstCred",
+            $this->conditionalNumberFormatting($std->vCBSEstCred),
             true,
-            "$identificador Percentual do Crédito Presumido (pCredPres)"
+            "$identificador Valor do CBS a ser estornado (vCBSEstCred)"
         );
-        $this->dom->addChild(
-            $gCBSCredPres,
-            "vCredPres",
-            $this->conditionalNumberFormatting($std->vCredPres),
-            true,
-            "$identificador Valor do Crédito Presumido (vCredPres)"
-        );
-        $this->dom->addChild(
-            $gCBSCredPres,
-            "vCredPresCondSus",
-            $this->conditionalNumberFormatting($std->vCredPresCondSus),
-            true,
-            "$identificador Valor do Crédito Presumido em condição suspensiva. (vCredPres)"
-        );
-        $this->gCBSCredPres = $gCBSCredPres;
-        return $gCBSCredPres;
+        $this->gEstornoCred = $estorno;
+        return $estorno;
     }
 
     /**
@@ -3025,7 +2976,7 @@ class MakeCTeOS
         return Strings::equilizeParameters($std, $possible, $this->replaceAccentedChars);
     }
 
-     /**
+    /**
      * Calcula hash sha1 retornando Base64Binary
      */
     protected function hashCSRT(string $CSRT): string
