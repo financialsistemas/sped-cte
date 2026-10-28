@@ -222,7 +222,7 @@ class MakeCTeOS
      */
     protected $tpPagAnt;
     /**
-     * Grupo de antecipacao de pagamento (NT 2026.002 §7) - acumula chDFePagAnt (1-99).
+     * Grupo de antecipacao de pagamento (NT 2026.002 §7) - acumula chCTePagAnt (1-99).
      * @var DOMElement|null
      */
     protected $gPagAntecipado;
@@ -392,13 +392,6 @@ class MakeCTeOS
         if (isset($this->infTribFed)) {
             $this->dom->appChild($this->imp, $this->infTribFed, 'Falta tag "imp"');
         }
-        if (!empty($this->pgtoVinc)) {
-            $pgtoVinc = $this->dom->createElement('pgtoVinc');
-            foreach ($this->pgtoVinc as $pgto) {
-                $this->dom->appChild($pgtoVinc, $pgto, 'Falta tag "pgtoVinc"');
-            }
-            $this->dom->appChild($this->infCte, $pgtoVinc, 'Falta tag "pgtoVinc"');
-        }
         if ($this->schema == 'PL_CTe_400_RTC') {
             if (isset($this->IBSCBS)) {
                 $node = $this->IBSCBS->getElementsByTagName("gIBSCBS")->item(0);
@@ -419,6 +412,16 @@ class MakeCTeOS
         }
 
         $this->dom->appChild($this->infCte, $this->imp, 'Falta tag "imp"');
+
+        /* pgtoVinc deve ser anexado depois do imp e antes do infCTeNorm (ordem do XSD) */
+        if (!empty($this->pgtoVinc)) {
+            $pgtoVinc = $this->dom->createElement('pgtoVinc');
+            foreach ($this->pgtoVinc as $pgto) {
+                $this->dom->appChild($pgtoVinc, $pgto, 'Falta tag "pgtoVinc"');
+            }
+            $this->dom->appChild($this->infCte, $pgtoVinc, 'Falta tag "pgtoVinc"');
+        }
+
         if (!empty($this->infCteComp)) { // Caso seja um CTe tipo complemento de valores
             $this->dom->appChild($this->infCte, $this->infCteComp, 'Falta tag "infCteComp"');
         } elseif (!empty($this->infCTeNorm)) { // Caso seja um CTe tipo normal
@@ -472,7 +475,7 @@ class MakeCTeOS
      */
     public function taginfCTe($std)
     {
-        $chave = preg_replace('/[^0-9]/', '', $std->Id);
+        $chave = Keys::extractAccessKey($std->Id);
         $this->infCte = $this->dom->createElement('infCte');
         $this->infCte->setAttribute('Id', 'CTe' . $chave);
         $this->infCte->setAttribute('versao', $std->versao);
@@ -2491,24 +2494,24 @@ class MakeCTeOS
     }
 
     /**
-     * Grupo gPagAntecipado / chDFePagAnt (NT 2026.002 §7). Chamar uma vez por chave
-     * (1-99): acumula cada chDFePagAnt no mesmo grupo, anexado ao ide no monta().
+     * Grupo gPagAntecipado / chCTePagAnt (NT 2026.002 §7). Chamar uma vez por chave
+     * (1-99): acumula cada chCTePagAnt no mesmo grupo, anexado ao ide no monta().
      * @param stdClass $std
      * @return DOMElement
      */
     public function taggPagAntecipado($std)
     {
-        $possible = ['chDFePagAnt'];
+        $possible = ['chCTePagAnt'];
         $std = $this->equilizeParameters($std, $possible);
         if (empty($this->gPagAntecipado)) {
             $this->gPagAntecipado = $this->dom->createElement("gPagAntecipado");
         }
         $this->dom->addChild(
             $this->gPagAntecipado,
-            "chDFePagAnt",
-            $std->chDFePagAnt,
+            "chCTePagAnt",
+            $std->chCTePagAnt,
             true,
-            "# <gPagAntecipado> - Chave de acesso do DFe de antecipacao de pagamento"
+            "# <gPagAntecipado> - Chave de acesso do CT-e de antecipacao de pagamento"
         );
         return $this->gPagAntecipado;
     }
@@ -3039,6 +3042,19 @@ class MakeCTeOS
         $std = $this->equilizeParameters($std, $possible);
         $identificador = '#3 <pgto> - ';
         $pgto = $this->dom->createElement('pgto');
+        /* nPag e idTransacao sao atributos do elemento pgto (TPagamentoRTC), nao elementos filhos */
+        $nPag = trim((string) $std->nPag);
+        if ($nPag === '') {
+            $this->dom->errors[] = "Preenchimento Obrigatório! [nPag] "
+                . $identificador . 'Número sequencial do pagamento';
+        }
+        $pgto->setAttribute('nPag', $nPag);
+        $idTransacao = trim((string) $std->idTransacao);
+        if ($idTransacao === '') {
+            $this->dom->errors[] = "Preenchimento Obrigatório! [idTransacao] "
+                . $identificador . 'ID específico da transação financeira conforme o meio de pagamento';
+        }
+        $pgto->setAttribute('idTransacao', $idTransacao);
         $this->dom->addChild(
             $pgto,
             'tpMeioPgto',
@@ -3060,20 +3076,6 @@ class MakeCTeOS
             true,
             $identificador . 'CNPJ base da instituição financeira'
         );
-        $this->dom->addChild(
-            $pgto,
-            'nPag',
-            $std->nPag,
-            true,
-            $identificador . 'Número sequencial do pagamento'
-        );
-        $this->dom->addChild(
-            $pgto,
-            'idTransacao',
-            $std->idTransacao,
-            true,
-            $identificador . 'ID específico da transação financeira conforme o meio de pagamento'
-        );
         $this->pgtoVinc[] = $pgto;
         return $pgto;
     }
@@ -3091,7 +3093,7 @@ class MakeCTeOS
         $nNF = $ide->getElementsByTagName('nCT')->item(0)->nodeValue;
         $tpEmis = $ide->getElementsByTagName('tpEmis')->item(0)->nodeValue;
         $cCT = $ide->getElementsByTagName('cCT')->item(0)->nodeValue;
-        $chave = str_replace('CTe', '', $infCTe->getAttribute("Id"));
+        $chave = Keys::extractAccessKey($infCTe->getAttribute("Id"));
 
         $dt = new \DateTime($dhEmi);
 
